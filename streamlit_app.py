@@ -131,6 +131,23 @@ default_symbols = [
     "000270.KS",  # 기아
     "034730.KS",  # SK
     "032830.KS",  # 삼성생명
+    # 코스닥 주요 종목
+    "091990.KQ",  # 셀트리온헬스케어
+    "196170.KQ",  # 알테오젠
+    "022100.KQ",  # 포스코ICT
+    "357780.KQ",  # 솔브레인
+    "263750.KQ",  # 펄어비스
+    "039490.KQ",  # 키움증권
+    "058470.KQ",  # 리노공업
+    "240810.KQ",  # 원익IPS
+    "293490.KQ",  # 카카오게임즈
+    "256940.KQ",  # 케이팝스타
+    # 해외 주요 종목
+    "AAPL",       # 애플
+    "MSFT",       # 마이크로소프트
+    "GOOGL",      # 구글
+    "TSLA",       # 테슬라
+    "NVDA",       # 엔비디아
 ]
 
 selected_symbol = st.sidebar.selectbox(
@@ -157,13 +174,68 @@ selected_symbol = st.sidebar.selectbox(
         "000270.KS": "기아 (000270)",
         "034730.KS": "SK (034730)",
         "032830.KS": "삼성생명 (032830)",
+        # 코스닥
+        "091990.KQ": "셀트리온헬스케어 (091990)",
+        "196170.KQ": "알테오젠 (196170)",
+        "022100.KQ": "포스코ICT (022100)",
+        "357780.KQ": "솔브레인 (357780)",
+        "263750.KQ": "펄어비스 (263750)",
+        "039490.KQ": "키움증권 (039490)",
+        "058470.KQ": "리노공업 (058470)",
+        "240810.KQ": "원익IPS (240810)",
+        "293490.KQ": "카카오게임즈 (293490)",
+        "256940.KQ": "케이팝스타 (256940)",
+        # 해외
+        "AAPL": "애플 (AAPL)",
+        "MSFT": "마이크로소프트 (MSFT)",
+        "GOOGL": "구글 (GOOGL)",
+        "TSLA": "테슬라 (TSLA)",
+        "NVDA": "엔비디아 (NVDA)",
         "직접입력": "직접입력"
     }.get(x, x)
 )
 
 if selected_symbol == "직접입력":
-    custom_symbol = st.sidebar.text_input("종목 코드 입력", "005930.KS")
+    st.sidebar.markdown("**💡 종목 코드 입력 가이드:**")
+    st.sidebar.markdown("- 코스피: 종목코드.KS (예: 005930.KS)")
+    st.sidebar.markdown("- 코스닥: 종목코드.KQ (예: 035720.KQ)")  
+    st.sidebar.markdown("- 미국: 심볼 (예: AAPL, TSLA)")
+    
+    # 인기 종목 추천
+    st.sidebar.markdown("**🔥 인기 종목 코드:**")
+    popular_stocks = {
+        "코스피": ["373220.KS (LG에너지솔루션)", "207940.KS (삼성바이오로직스)", "005930.KS (삼성전자)"],
+        "코스닥": ["091990.KQ (셀트리온헬스케어)", "196170.KQ (알테오젠)", "293490.KQ (카카오게임즈)"],
+        "해외": ["AAPL (애플)", "TSLA (테슬라)", "NVDA (엔비디아)"]
+    }
+    
+    for market, stocks in popular_stocks.items():
+        with st.sidebar.expander(f"📊 {market} 인기종목"):
+            for stock in stocks:
+                if st.button(f"📌 {stock.split('(')[1].replace(')', '')}", key=f"pop_{stock}"):
+                    custom_symbol = stock.split()[0]
+                    st.sidebar.success(f"선택: {custom_symbol}")
+                    selected_symbol = custom_symbol
+    
+    custom_symbol = st.sidebar.text_input("종목 코드 입력", "005930.KS", 
+                                         help="예시: 005930.KS (삼성전자), 035720.KQ (카카오)")
     selected_symbol = custom_symbol
+    
+    # 종목 유효성 검사 버튼
+    if st.sidebar.button("🔍 종목 확인"):
+        try:
+            test_ticker = yf.Ticker(custom_symbol)
+            test_data = test_ticker.history(period="5d")
+            if not test_data.empty:
+                st.sidebar.success(f"✅ {custom_symbol} 데이터 확인!")
+                # 기본 정보 표시
+                info = test_ticker.info
+                if 'longName' in info:
+                    st.sidebar.write(f"**회사명**: {info['longName']}")
+            else:
+                st.sidebar.error("❌ 해당 종목 데이터가 없습니다")
+        except:
+            st.sidebar.error("❌ 종목 코드를 확인해주세요")
 
 # 기간 선택
 period = st.sidebar.selectbox(
