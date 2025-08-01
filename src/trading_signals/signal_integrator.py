@@ -18,20 +18,25 @@ from src.technical_analysis.rsi_analyzer import RSIAnalyzer
 from src.technical_analysis.macd_analyzer import MACDAnalyzer
 from src.technical_analysis.bollinger_bands import BollingerBandsAnalyzer
 from src.technical_analysis.volume_analyzer import VolumeAnalyzer
+from src.technical_analysis.stochastic_oscillator import StochasticOscillator
+from src.trading_signals.market_condition_analyzer import MarketConditionAnalyzer
 
 class SignalIntegrator:
     """다중 지표 신호 통합기 - 정확도 우선 매매신호 생성"""
     
     def __init__(self, 
                  confidence_threshold: float = 0.7,
-                 min_indicators: int = 3):
+                 min_indicators: int = 3,
+                 use_market_condition: bool = True):
         """
         Args:
             confidence_threshold: 최소 신뢰도 임계값 (기본: 0.7)
             min_indicators: 최소 동의 지표 수 (기본: 3개)
+            use_market_condition: 시장 상황 기반 신호 조정 사용 여부
         """
         self.confidence_threshold = confidence_threshold
         self.min_indicators = min_indicators
+        self.use_market_condition = use_market_condition
         self.logger = self._setup_logger()
         
         # 각 분석기 초기화
@@ -40,14 +45,20 @@ class SignalIntegrator:
         self.macd_analyzer = MACDAnalyzer()
         self.bb_analyzer = BollingerBandsAnalyzer()
         self.volume_analyzer = VolumeAnalyzer()
+        self.stoch_analyzer = StochasticOscillator()
         
-        # 지표별 가중치 (신뢰도 기반)
+        # 시장 상황 분석기
+        if self.use_market_condition:
+            self.market_analyzer = MarketConditionAnalyzer()
+        
+        # 지표별 가중치 (신뢰도 기반) - 6개 지표로 확대
         self.indicator_weights = {
-            'ma': 0.25,      # 이동평균 (트렌드)
-            'rsi': 0.20,     # RSI (과매수/과매도)
-            'macd': 0.25,    # MACD (모멘텀)
+            'ma': 0.20,      # 이동평균 (트렌드)
+            'rsi': 0.15,     # RSI (과매수/과매도)
+            'macd': 0.20,    # MACD (모멘텀)
             'bb': 0.15,      # 볼린저밴드 (변동성)
-            'volume': 0.15   # 거래량 (확인)
+            'volume': 0.15,  # 거래량 (확인)
+            'stoch': 0.15    # 스토캐스틱 (과매수/과매도)
         }
         
     def _setup_logger(self) -> logging.Logger:
@@ -81,39 +92,51 @@ class SignalIntegrator:
             self.logger.info("Starting comprehensive technical analysis...")
             
             # 1. 이동평균 분석
-            self.logger.info("1/5 Moving Average analysis...")
+            self.logger.info("1/7 Moving Average analysis...")
             result = self.ma_analyzer.calculate_moving_averages(result)
             result = self.ma_analyzer.detect_crossovers(result)
             result = self.ma_analyzer.get_trend_strength(result)
             result = self.ma_analyzer.generate_ma_signals(result)
             
             # 2. RSI 분석
-            self.logger.info("2/5 RSI analysis...")
+            self.logger.info("2/7 RSI analysis...")
             result = self.rsi_analyzer.calculate_rsi(result)
             result = self.rsi_analyzer.detect_divergences(result)
             result = self.rsi_analyzer.generate_rsi_signals(result)
             
             # 3. MACD 분석
-            self.logger.info("3/5 MACD analysis...")
+            self.logger.info("3/7 MACD analysis...")
             result = self.macd_analyzer.calculate_macd(result)
             result = self.macd_analyzer.detect_macd_crossovers(result)
             result = self.macd_analyzer.analyze_histogram_patterns(result)
             result = self.macd_analyzer.generate_macd_signals(result)
             
             # 4. 볼린저 밴드 분석
-            self.logger.info("4/5 Bollinger Bands analysis...")
+            self.logger.info("4/7 Bollinger Bands analysis...")
             result = self.bb_analyzer.calculate_bollinger_bands(result)
             result = self.bb_analyzer.detect_squeeze_patterns(result)
             result = self.bb_analyzer.detect_band_touches(result)
             result = self.bb_analyzer.generate_bb_signals(result)
             
             # 5. 거래량 분석
-            self.logger.info("5/5 Volume analysis...")
+            self.logger.info("5/7 Volume analysis...")
             result = self.volume_analyzer.calculate_obv(result)
             result = self.volume_analyzer.calculate_vwap(result)
             result = self.volume_analyzer.detect_volume_patterns(result)
             result = self.volume_analyzer.detect_price_volume_divergence(result)
             result = self.volume_analyzer.generate_volume_signals(result)
+            
+            # 6. 스토캐스틱 분석
+            self.logger.info("6/7 Stochastic Oscillator analysis...")
+            result = self.stoch_analyzer.calculate_stochastic(result)
+            result = self.stoch_analyzer.detect_stochastic_crossovers(result)
+            result = self.stoch_analyzer.detect_stochastic_divergences(result)
+            result = self.stoch_analyzer.generate_stochastic_signals(result)
+            
+            # 7. 시장 상황 분석 (선택사항)
+            if self.use_market_condition:
+                self.logger.info("7/7 Market Condition analysis...")
+                result = self.market_analyzer.analyze_market_condition(result)
             
             self.logger.info("Technical analysis completed for all indicators")
             return result
@@ -141,6 +164,7 @@ class SignalIntegrator:
             result['macd_score'] = 0.0
             result['bb_score'] = 0.0
             result['volume_score'] = 0.0
+            result['stoch_score'] = 0.0
             
             # 1. 이동평균 점수 (-1 ~ +1)
             if 'ma_buy_signal' in result.columns and 'ma_sell_signal' in result.columns:
@@ -202,6 +226,18 @@ class SignalIntegrator:
                     )
                 )
             
+            # 6. 스토캐스틱 점수 (-1 ~ +1)
+            if 'stoch_buy_signal' in result.columns and 'stoch_sell_signal' in result.columns:
+                result['stoch_score'] = np.where(
+                    result['stoch_buy_signal'] == 1,
+                    result['stoch_signal_strength'] / 3.0,  # 정규화
+                    np.where(
+                        result['stoch_sell_signal'] == 1,
+                        result['stoch_signal_strength'] / 3.0,  # 이미 음수
+                        0.0
+                    )
+                )
+            
             self.logger.info("Signal scores calculated for all indicators")
             return result
             
@@ -236,7 +272,8 @@ class SignalIntegrator:
                 'rsi_signal': np.where(result['rsi_score'] > 0.5, 1, np.where(result['rsi_score'] < -0.5, -1, 0)),
                 'macd_signal': np.where(result['macd_score'] > 0.3, 1, np.where(result['macd_score'] < -0.3, -1, 0)),
                 'bb_signal': np.where(result['bb_score'] > 0.3, 1, np.where(result['bb_score'] < -0.3, -1, 0)),
-                'volume_signal': np.where(result['volume_score'] > 0.3, 1, np.where(result['volume_score'] < -0.3, -1, 0))
+                'volume_signal': np.where(result['volume_score'] > 0.3, 1, np.where(result['volume_score'] < -0.3, -1, 0)),
+                'stoch_signal': np.where(result['stoch_score'] > 0.3, 1, np.where(result['stoch_score'] < -0.3, -1, 0))
             })
             
             # 가중 평균 신호 강도 계산
@@ -245,7 +282,8 @@ class SignalIntegrator:
                 result['rsi_score'] * self.indicator_weights['rsi'] +
                 result['macd_score'] * self.indicator_weights['macd'] +
                 result['bb_score'] * self.indicator_weights['bb'] +
-                result['volume_score'] * self.indicator_weights['volume']
+                result['volume_score'] * self.indicator_weights['volume'] +
+                result['stoch_score'] * self.indicator_weights['stoch']
             )
             
             result['integrated_strength'] = weighted_score
@@ -269,6 +307,11 @@ class SignalIntegrator:
                     result.loc[idx, 'integrated_confidence'] = min(0.95, 0.6 + (sell_signals - 2) * 0.1)
                     result.loc[idx, 'signal_quality'] = self._get_signal_quality(sell_signals, abs(weighted_score.loc[idx]))
             
+            # 시장 상황에 따른 신호 강도 조정
+            if self.use_market_condition and 'market_condition' in result.columns:
+                result = self.market_analyzer.adjust_signal_strength(result)
+                self.logger.info("Signal strength adjusted based on market conditions")
+            
             # 통합 신호 통계
             buy_signals = (result['integrated_buy_signal'] == 1).sum()
             sell_signals = (result['integrated_sell_signal'] == 1).sum()
@@ -283,13 +326,13 @@ class SignalIntegrator:
             return data
     
     def _get_signal_quality(self, agreeing_count: int, strength: float) -> str:
-        """신호 품질 분류"""
-        if agreeing_count >= 5 and strength > 0.8:
+        """신호 품질 분류 (6개 지표 기준)"""
+        if agreeing_count >= 6 and strength > 0.8:
             return 'EXCELLENT'
-        elif agreeing_count >= 4 and strength > 0.7:
+        elif agreeing_count >= 5 and strength > 0.7:
             return 'VERY_GOOD'
-        elif agreeing_count >= 3 and strength > 0.6:
-            return 'GOOD'
+        elif agreeing_count >= 4 and strength > 0.6:
+            return 'GOOD' 
         elif agreeing_count >= 3 and strength > 0.5:
             return 'FAIR'
         else:
@@ -350,7 +393,8 @@ class SignalIntegrator:
                 'rsi_score': float(latest['rsi_score']) if 'rsi_score' in data.columns and not pd.isna(latest['rsi_score']) else 0.0,
                 'macd_score': float(latest['macd_score']) if 'macd_score' in data.columns and not pd.isna(latest['macd_score']) else 0.0,
                 'bb_score': float(latest['bb_score']) if 'bb_score' in data.columns and not pd.isna(latest['bb_score']) else 0.0,
-                'volume_score': float(latest['volume_score']) if 'volume_score' in data.columns and not pd.isna(latest['volume_score']) else 0.0
+                'volume_score': float(latest['volume_score']) if 'volume_score' in data.columns and not pd.isna(latest['volume_score']) else 0.0,
+                'stoch_score': float(latest['stoch_score']) if 'stoch_score' in data.columns and not pd.isna(latest['stoch_score']) else 0.0
             }
             
             # 통합 신호 통계

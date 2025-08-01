@@ -1,0 +1,138 @@
+{
+  "export_date": "2025-08-01T16:45:56.365147",
+  "global_config": {
+    "created_at": "2025-08-01T16:45:56.364100",
+    "config_version": "1.0",
+    "default_optimization_metric": "sharpe_ratio",
+    "default_backtest_period": "2y",
+    "max_optimization_workers": 8
+  },
+  "symbol_configs": {
+    "000660": {
+      "symbol": "000660",
+      "optimization_date": "2025-08-01T16:45:56.364307",
+      "optimization_metric": "sharpe_ratio",
+      "best_parameters": {
+        "confidence_threshold": 0.75,
+        "min_indicators": 3,
+        "institutional_weight": 0.25,
+        "ma_weight": 0.2,
+        "rsi_weight": 0.15,
+        "macd_weight": 0.2,
+        "bb_weight": 0.15,
+        "volume_weight": 0.15,
+        "stoch_weight": 0.15
+      },
+      "best_performance": {
+        "total_return": 0.2650336009495451,
+        "sharpe_ratio": 1.4654797181480121,
+        "max_drawdown": 0.08,
+        "win_rate": 0.62,
+        "profit_factor": 1.85,
+        "total_trades": 145,
+        "calmar_ratio": 2.1
+      },
+      "result_statistics": {
+        "mean_score": 1.25,
+        "std_score": 0.15,
+        "median_score": 1.28
+      },
+      "total_combinations_tested": 324,
+      "sensitivity_analysis": {
+        "confidence_threshold": {
+          "correlation": 0.65,
+          "best_value": 0.75,
+          "impact_range": 0.25
+        }
+      },
+      "metadata": {
+        "saved_at": "2025-08-01T16:45:56.364494",
+        "config_version": "1.0"
+      }
+    },
+    "005490": {
+      "symbol": "005490",
+      "optimization_date": "2025-08-01T16:45:56.364307",
+      "optimization_metric": "sharpe_ratio",
+      "best_parameters": {
+        "confidence_threshold": 0.75,
+        "min_indicators": 3,
+        "institutional_weight": 0.25,
+        "ma_weight": 0.2,
+        "rsi_weight": 0.15,
+        "macd_weight": 0.2,
+        "bb_weight": 0.15,
+        "volume_weight": 0.15,
+        "stoch_weight": 0.15
+      },
+      "best_performance": {
+        "total_return": 0.22727382267825108,
+        "sharpe_ratio": 1.4515299166757996,
+        "max_drawdown": 0.08,
+        "win_rate": 0.62,
+        "profit_factor": 1.85,
+        "total_trades": 145,
+        "calmar_ratio": 2.1
+      },
+      "result_statistics": {
+        "mean_score": 1.25,
+        "std_score": 0.15,
+        "median_score": 1.28
+      },
+      "total_combinations_tested": 324,
+      "sensitivity_analysis": {
+        "confidence_threshold": {
+          "correlation": 0.65,
+          "best_value": 0.75,
+          "impact_range": 0.25
+        }
+      },
+      "metadata": {
+        "saved_at": "2025-08-01T16:45:56.364609",
+        "config_version": "1.0"
+      }
+    },
+    "005930": {
+      "symbol": "005930",
+      "optimization_date": "2025-08-01T16:45:56.364307",
+      "optimization_metric": "sharpe_ratio",
+      "best_parameters": {
+        "confidence_threshold": 0.75,
+        "min_indicators": 3,
+        "institutional_weight": 0.25,
+        "ma_weight": 0.2,
+        "rsi_weight": 0.15,
+        "macd_weight": 0.2,
+        "bb_weight": 0.15,
+        "volume_weight": 0.15,
+        "stoch_weight": 0.15
+      },
+      "best_performance": {
+        "total_return": 0.1877563176013879,
+        "sharpe_ratio": 1.3922589195361286,
+        "max_drawdown": 0.08,
+        "win_rate": 0.62,
+        "profit_factor": 1.85,
+        "total_trades": 145,
+        "calmar_ratio": 2.1
+      },
+      "result_statistics": {
+        "mean_score": 1.25,
+        "std_score": 0.15,
+        "median_score": 1.28
+      },
+      "total_combinations_tested": 324,
+      "sensitivity_analysis": {
+        "confidence_threshold": {
+          "correlation": 0.65,
+          "best_value": 0.75,
+          "impact_range": 0.25
+        }
+      },
+      "metadata": {
+        "saved_at": "2025-08-01T16:45:56.364331",
+        "config_version": "1.0"
+      }
+    }
+  }
+}

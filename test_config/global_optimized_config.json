@@ -1,0 +1,8 @@
+{
+  "last_updated": "2025-08-01T16:45:56.364108",
+  "config_version": "1.0",
+  "created_at": "2025-08-01T16:45:56.364100",
+  "default_optimization_metric": "sharpe_ratio",
+  "default_backtest_period": "2y",
+  "max_optimization_workers": 8
+}
