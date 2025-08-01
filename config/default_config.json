@@ -1,0 +1,102 @@
+{
+  "trading_system": {
+    "name": "Smart Trading System",
+    "version": "1.0.0",
+    "created": "2025-08-01"
+  },
+  "database": {
+    "path": "data/trading_system.db",
+    "backup_interval_hours": 24,
+    "max_backup_files": 7
+  },
+  "data_collection": {
+    "default_symbols": [
+      "005930.KS",
+      "000660.KS", 
+      "035420.KS",
+      "005380.KS",
+      "055550.KS"
+    ],
+    "update_interval_minutes": 30,
+    "retry_attempts": 3,
+    "timeout_seconds": 10
+  },
+  "technical_analysis": {
+    "moving_averages": {
+      "periods": [5, 10, 20, 60, 120],
+      "enabled": true
+    },
+    "rsi": {
+      "period": 14,
+      "overbought": 70,
+      "oversold": 30,
+      "enabled": true
+    },
+    "macd": {
+      "fast_period": 12,
+      "slow_period": 26,
+      "signal_period": 9,
+      "enabled": true
+    },
+    "bollinger_bands": {
+      "period": 20,
+      "std_dev": 2,
+      "enabled": true
+    },
+    "stochastic": {
+      "k_period": 14,
+      "d_period": 3,
+      "overbought": 80,
+      "oversold": 20,
+      "enabled": true
+    }
+  },
+  "trading_signals": {
+    "confidence_threshold": 0.7,
+    "min_indicators": 3,
+    "signal_timeout_hours": 24,
+    "max_signals_per_day": 50
+  },
+  "risk_management": {
+    "max_position_size_percent": 10,
+    "stop_loss_percent": 5,
+    "take_profit_percent": 15,
+    "max_portfolio_risk_percent": 20,
+    "correlation_threshold": 0.7
+  },
+  "backtesting": {
+    "initial_capital": 10000000,
+    "commission_rate": 0.003,
+    "slippage_percent": 0.1,
+    "lookback_period_days": 365
+  },
+  "alerts": {
+    "enabled": true,
+    "console_output": true,
+    "file_logging": true,
+    "check_interval_minutes": 5,
+    "max_alerts_per_hour": 10
+  },
+  "dashboard": {
+    "port": 8501,
+    "cache_ttl_seconds": 300,
+    "auto_refresh": false,
+    "page_size": 50
+  },
+  "logging": {
+    "level": "INFO",
+    "max_file_size_mb": 10,
+    "backup_count": 5,
+    "log_rotation": true
+  },
+  "system_monitoring": {
+    "enabled": true,
+    "check_interval_minutes": 5,
+    "resource_alerts": {
+      "cpu_threshold": 80,
+      "memory_threshold": 80,
+      "disk_threshold": 90
+    },
+    "performance_tracking": true
+  }
+}

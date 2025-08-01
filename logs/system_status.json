@@ -1,0 +1,43 @@
+{
+  "collection_time": "2025-08-01T18:17:00.221552",
+  "system_resources": {
+    "cpu_percent": 0,
+    "memory_percent": 0,
+    "memory_available_gb": 0,
+    "disk_percent": 0,
+    "disk_free_gb": 0,
+    "timestamp": "2025-08-01T18:17:00.221554",
+    "note": "psutil not available - using dummy values"
+  },
+  "database_status": {
+    "database_size_mb": 0.24609375,
+    "total_symbols": 5,
+    "portfolio_count": 1,
+    "recent_signals_24h": 4,
+    "status": "current",
+    "timestamp": "2025-08-01T18:17:00.233302"
+  },
+  "log_files_status": {
+    "log_file_count": 2,
+    "total_size_mb": 0.0,
+    "files": [
+      {
+        "name": "system_monitor_20250801.log",
+        "size_mb": 0.0,
+        "modified": "2025-08-01T18:17:00.225069"
+      },
+      {
+        "name": "update_data_20250801.log",
+        "size_mb": 0.0,
+        "modified": "2025-08-01T18:04:32.330436"
+      }
+    ],
+    "timestamp": "2025-08-01T18:17:00.233412"
+  },
+  "health_check": {
+    "issues": [],
+    "warnings": [],
+    "status": "healthy",
+    "timestamp": "2025-08-01T18:17:00.239107"
+  }
+}
