@@ -553,7 +553,26 @@ def display_real_time_data(enhanced_data):
         
         st.markdown("---")
 
-def display_delayed_data(data, data_source):
+def is_us_stock(symbol):
+    """미국 주식인지 확인"""
+    # 한국 주식은 .KS 또는 .KQ로 끝남
+    return not (symbol.endswith('.KS') or symbol.endswith('.KQ'))
+
+def format_price(price, symbol):
+    """종목에 따라 적절한 통화로 가격 표시"""
+    if is_us_stock(symbol):
+        return "${:,.2f}".format(price)
+    else:
+        return "{:,.0f}원".format(price)
+
+def format_change(change, symbol):
+    """종목에 따라 적절한 통화로 변동 표시"""
+    if is_us_stock(symbol):
+        return "${:+.2f}".format(change)
+    else:
+        return "{:+.0f}원".format(change)
+
+def display_delayed_data(data, data_source, symbol=""):
     """데이터 표시"""
     st.info("📊 주가 데이터")
     
@@ -570,13 +589,16 @@ def display_delayed_data(data, data_source):
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("현재가", "{:,.0f}원".format(latest['Close']), "{:+.0f}원".format(change))
+        st.metric("현재가", format_price(latest['Close'], symbol), format_change(change, symbol))
     
     with col2:
         st.metric("변동율", "{:+.2f}%".format(change_pct))
     
     with col3:
-        st.metric("거래량", "{:,.0f}주".format(latest['Volume']))
+        if is_us_stock(symbol):
+            st.metric("거래량", "{:,.0f}".format(latest['Volume']))
+        else:
+            st.metric("거래량", "{:,.0f}주".format(latest['Volume']))
     
     with col4:
         rsi_value = latest['RSI'] if 'RSI' in latest and not pd.isna(latest['RSI']) else 0
@@ -1189,9 +1211,12 @@ def create_candlestick_chart(data, symbol):
             line=dict(color='red', width=1)
         ))
     
+    # Y축 제목을 종목에 따라 다르게 설정
+    y_title = "가격 (USD)" if is_us_stock(symbol) else "가격 (원)"
+    
     fig.update_layout(
         title="주가 차트",
-        yaxis_title="가격 (원)",
+        yaxis_title=y_title,
         xaxis_title="날짜",
         height=500,
         showlegend=True
@@ -1302,7 +1327,7 @@ def main():
         if enhanced_data.get('has_realtime'):
             display_real_time_data(enhanced_data)
         else:
-            display_delayed_data(data, enhanced_data.get('data_source', 'yfinance'))
+            display_delayed_data(data, enhanced_data.get('data_source', 'yfinance'), selected_symbol)
         
         # 현재 가격 정보 (전체 탭에서 사용)
         current_price = data['Close'].iloc[-1] if not data.empty else 0
@@ -1318,7 +1343,7 @@ def main():
         
         with tab1:
             st.subheader("📊 주가 차트 및 기술적 지표")
-            chart = create_candlestick_chart(data, selected_name)
+            chart = create_candlestick_chart(data, selected_symbol)
             if chart:
                 st.plotly_chart(chart, use_container_width=True)
             
@@ -1653,7 +1678,7 @@ def main():
                         target1 = trading_signals['target_price_1']
                         st.metric(
                             "1차 목표가" if trading_signals['signal_strength'] > 0 else "1차 목표가(하락)",
-                            "{:,.0f}원".format(target1),
+                            format_price(target1, selected_symbol),
                             "{:+.1f}%".format((target1 / current_price - 1) * 100)
                         )
                     
@@ -1661,7 +1686,7 @@ def main():
                         target2 = trading_signals['target_price_2']
                         st.metric(
                             "2차 목표가" if trading_signals['signal_strength'] > 0 else "2차 목표가(하락)",
-                            "{:,.0f}원".format(target2),
+                            format_price(target2, selected_symbol),
                             "{:+.1f}%".format((target2 / current_price - 1) * 100)
                         )
                     
@@ -1669,7 +1694,7 @@ def main():
                         stop_loss = trading_signals['stop_loss']
                         st.metric(
                             "손절가",
-                            "{:,.0f}원".format(stop_loss),
+                            format_price(stop_loss, selected_symbol),
                             "{:+.1f}%".format((stop_loss / current_price - 1) * 100)
                         )
             else:
