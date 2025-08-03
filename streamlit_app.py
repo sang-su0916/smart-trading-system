@@ -720,15 +720,77 @@ def main():
         
         st.markdown("---")
         
-        # 차트 표시
-        st.subheader("📊 주가 차트")
-        chart = create_candlestick_chart(data, selected_name)
-        if chart:
-            st.plotly_chart(chart, use_container_width=True)
+        # 메인 분석 섹션을 탭으로 구성
+        st.markdown("**💡 분석 결과를 탭별로 확인하세요!**")
         
-        # 공정가치 분석
-        st.markdown("---")
-        st.subheader("⚖️ 공정가치 분석")
+        analysis_tab1, analysis_tab2, analysis_tab3, analysis_tab4 = st.tabs([
+            "📊 차트 & 현황", 
+            "⚖️ 공정가치 분석", 
+            "🏭 업종 비교 분석", 
+            "🚦 매매 신호 분석"
+        ])
+        
+        # 탭 1: 차트 & 현황
+        with analysis_tab1:
+            st.subheader("📊 주가 차트")
+            chart = create_candlestick_chart(data, selected_name)
+            if chart:
+                st.plotly_chart(chart, use_container_width=True)
+            
+            # 현재 시장 상황 요약
+            st.markdown("---")
+            st.subheader("📈 현재 시장 상황 요약")
+            
+            col_summary1, col_summary2 = st.columns(2)
+            
+            with col_summary1:
+                st.markdown("**📊 기술적 지표 현황:**")
+                rsi_value = latest['RSI'] if 'RSI' in latest and not pd.isna(latest['RSI']) else 0
+                if rsi_value > 70:
+                    rsi_status = "🔴 과매수"
+                elif rsi_value < 30:
+                    rsi_status = "🟢 과매도"
+                else:
+                    rsi_status = "⚪ 중립"
+                st.markdown(f"• **RSI**: {rsi_value:.1f} ({rsi_status})")
+                
+                # 이동평균선 상황
+                ma5 = latest['MA_5'] if not pd.isna(latest['MA_5']) else 0
+                ma20 = latest['MA_20'] if not pd.isna(latest['MA_20']) else 0
+                current_price = latest['Close']
+                
+                if current_price > ma5 > ma20:
+                    ma_status = "🟢 정배열"
+                elif current_price < ma5 < ma20:
+                    ma_status = "🔴 역배열"
+                else:
+                    ma_status = "⚪ 혼재"
+                st.markdown(f"• **이동평균**: {ma_status}")
+                
+                # 볼린저밴드 위치
+                bb_position = ((current_price - latest['BB_Lower']) / (latest['BB_Upper'] - latest['BB_Lower'])) * 100 if not pd.isna(latest['BB_Lower']) else 50
+                if bb_position > 80:
+                    bb_status = "🔴 상단권"
+                elif bb_position < 20:
+                    bb_status = "🟢 하단권"
+                else:
+                    bb_status = "⚪ 중간권"
+                st.markdown(f"• **볼린저밴드**: {bb_position:.1f}% ({bb_status})")
+            
+            with col_summary2:
+                st.markdown("**💰 가격 정보:**")
+                st.markdown(f"• **현재가**: {current_price:,.0f}원")
+                st.markdown(f"• **5일선**: {ma5:,.0f}원")
+                st.markdown(f"• **20일선**: {ma20:,.0f}원")
+                st.markdown(f"• **거래량**: {latest['Volume']:,.0f}주")
+                
+                # 변동성 정보
+                volatility = data['Close'].rolling(window=20).std().iloc[-1] / current_price * 100
+                st.markdown(f"• **20일 변동성**: {volatility:.1f}%")
+        
+        # 탭 2: 공정가치 분석
+        with analysis_tab2:
+            st.subheader("⚖️ 공정가치 분석")
         
         fair_value_analysis = analyze_fair_value(data, latest['Close'])
         
@@ -844,9 +906,9 @@ def main():
                 else:
                     st.markdown("• MACD 중립")
         
-        # 업종 비교 분석
-        st.markdown("---")
-        st.subheader("🏭 업종 비교 분석")
+        # 탭 3: 업종 비교 분석
+        with analysis_tab3:
+            st.subheader("🏭 업종 비교 분석")
         
         industry_analysis = analyze_industry_comparison(selected_symbol, data)
         
@@ -931,9 +993,9 @@ def main():
             st.info("📊 업종 비교 분석: {}".format(industry_analysis['message']))
             st.markdown("**참고:** 충분한 데이터가 확보되면 동종업계 대비 상대적 위치를 분석하여 제공합니다.")
         
-        # 매매 신호 분석
-        st.markdown("---")
-        st.subheader("🚦 매매 신호 분석")
+        # 탭 4: 매매 신호 분석
+        with analysis_tab4:
+            st.subheader("🚦 매매 신호 분석")
         
         trading_signals = analyze_trading_signals(data, latest['Close'])
         
