@@ -184,8 +184,9 @@ st.set_page_config(
 )
 
 def get_fallback_stocks():
-    """pykrx 사용 불가시 주요 종목 리스트"""
+    """pykrx 사용 불가시 주요 종목 리스트 (확장된 버전)"""
     return {
+        # 대형주 (시가총액 상위)
         "삼성전자 (005930)": "005930.KS",
         "SK하이닉스 (000660)": "000660.KS", 
         "NAVER (035420)": "035420.KS",
@@ -195,42 +196,254 @@ def get_fallback_stocks():
         "POSCO홀딩스 (005490)": "005490.KS",
         "LG화학 (051910)": "051910.KS",
         "현대차 (005380)": "005380.KS",
-        "기아 (000270)": "000270.KS"
+        "기아 (000270)": "000270.KS",
+        
+        # 금융주
+        "삼성물산 (028260)": "028260.KS",
+        "KB금융 (105560)": "105560.KS",
+        "신한지주 (055550)": "055550.KS",
+        "하나금융지주 (086790)": "086790.KS",
+        "우리금융지주 (316140)": "316140.KS",
+        "NH투자증권 (005940)": "005940.KS",
+        
+        # IT/통신
+        "셀트리온 (068270)": "068270.KS",
+        "LG전자 (066570)": "066570.KS",
+        "삼성SDI (006400)": "006400.KS",
+        "SK텔레콤 (017670)": "017670.KS",
+        "KT (030200)": "030200.KS",
+        "LG유플러스 (032640)": "032640.KS",
+        
+        # 바이오/제약
+        "삼성생명 (032830)": "032830.KS",
+        "셀트리온헬스케어 (091990)": "091990.KS",
+        "삼진제약 (005500)": "005500.KS",
+        "유한양행 (000100)": "000100.KS",
+        "종근당 (185750)": "185750.KS",
+        
+        # 화학/소재
+        "LG화학 (051910)": "051910.KS",
+        "한화솔루션 (009830)": "009830.KS",
+        "롯데케미칼 (011170)": "011170.KS",
+        "코스모화학 (005420)": "005420.KS",
+        
+        # 자동차
+        "현대차 (005380)": "005380.KS",
+        "기아 (000270)": "000270.KS",
+        "현대모비스 (012330)": "012330.KS",
+        "한국타이어앤테크놀로지 (161390)": "161390.KS",
+        
+        # 에너지/유틸리티
+        "한국전력 (015760)": "015760.KS",
+        "SK이노베이션 (096770)": "096770.KS",
+        "GS (078930)": "078930.KS",
+        "S-Oil (010950)": "010950.KS",
+        
+        # 건설/부동산
+        "현대건설 (000720)": "000720.KS",
+        "대우건설 (047040)": "047040.KS",
+        "롯데물산 (023150)": "023150.KS",
+        
+        # 식품/유통
+        "농심 (004370)": "004370.KS",
+        "오리온 (001800)": "001800.KS",
+        "롯데제과 (280360)": "280360.KS",
+        "신세계 (004170)": "004170.KS",
+        "이마트 (139480)": "139480.KS",
+        
+        # 항공/운송
+        "대한항공 (003490)": "003490.KS",
+        "아시아나항공 (020560)": "020560.KS",
+        "한진칼 (180640)": "180640.KS",
+        
+        # 코스닥 주요 종목
+        "알테오젠 (196170)": "196170.KQ",
+        "에코프로 (086520)": "086520.KQ",
+        "에코프로비엠 (247540)": "247540.KQ",
+        "원익IPS (240810)": "240810.KQ",
+        "엘앤에프 (066970)": "066970.KQ",
+        "카카오뱅크 (323410)": "323410.KQ",
+        "카카오페이 (377300)": "377300.KQ",
+        "크래프톤 (259960)": "259960.KQ",
+        "펄어비스 (263750)": "263750.KQ",
+        "위메이드 (112040)": "112040.KQ",
+        "컴투스 (078340)": "078340.KQ",
+        "넷마블 (251270)": "251270.KQ",
+        "NHN (181710)": "181710.KQ",
+        "두산에너빌리티 (034020)": "034020.KS",
+        "포스코퓨처엠 (003670)": "003670.KS",
+        "메리츠금융지주 (138040)": "138040.KS",
+        "현대글로비스 (086280)": "086280.KS",
+        "CJ제일제당 (097950)": "097950.KS",
+        "아모레퍼시픽 (090430)": "090430.KS",
+        "LG생활건강 (051900)": "051900.KS",
+        
+        # 추가 종목들 (검색 개선용)
+        "삼성화재 (000810)": "000810.KS",
+        "삼성카드 (029780)": "029780.KS",
+        "SK이노베이션 (096770)": "096770.KS",
+        "SK바이오팜 (326030)": "326030.KQ",
+        "LG디스플레이 (034220)": "034220.KS",
+        "LG이노텍 (011070)": "011070.KS",
+        "현대중공업 (009540)": "009540.KS",
+        "두산 (000150)": "000150.KS",
+        "포스코 (005490)": "005490.KS",
+        "한국조선해양 (009540)": "009540.KS",
+        "KT&G (033780)": "033780.KS",
+        "SK (034730)": "034730.KS",
+        "LG (003550)": "003550.KS",
+        "GS홀딩스 (078930)": "078930.KS",
+        "한화 (000880)": "000880.KS",
+        "롯데홀딩스 (004990)": "004990.KS",
+        "신세계 (004170)": "004170.KS",
+        "현대백화점 (069960)": "069960.KS",
+        "롯데쇼핑 (023530)": "023530.KS",
+        "CJ (001040)": "001040.KS",
+        "LG상사 (001120)": "001120.KS",
+        "대우조선해양 (042660)": "042660.KS",
+        "한국전력공사 (015760)": "015760.KS",
+        "한국가스공사 (036460)": "036460.KS",
+        "국민은행 (105560)": "105560.KS",
+        "우리은행 (316140)": "316140.KS",
+        "KEB하나은행 (086790)": "086790.KS",
+        "신한은행 (055550)": "055550.KS",
+        "IBK기업은행 (024110)": "024110.KS",
+        "카카오게임즈 (293490)": "293490.KQ",
+        "셀트리온제약 (068760)": "068760.KQ",
+        "바이로메드 (206640)": "206640.KQ",
+        "씨젠 (096530)": "096530.KQ",
+        "에이치엘비 (028300)": "028300.KQ",
+        "마크로젠 (038290)": "038290.KQ",
+        "제넥신 (095700)": "095700.KQ",
+        "녹십자 (006280)": "006280.KS",
+        "유한양행 (000100)": "000100.KS",
+        "동아에스티 (170900)": "170900.KS",
+        "부광약품 (003000)": "003000.KS",
+        "일동제약 (249420)": "249420.KS",
+        "한미약품 (128940)": "128940.KS",
+        "대웅제약 (069620)": "069620.KS",
+        "종근당 (185750)": "185750.KS",
+        "유유제약 (000220)": "000220.KS",
+        "삼천리 (004690)": "004690.KS",
+        "KCC (002380)": "002380.KS",
+        "삼성엔지니어링 (028050)": "028050.KS",
+        "GS건설 (006360)": "006360.KS",
+        "대림산업 (000210)": "000210.KS",
+        "태영건설 (009410)": "009410.KS"
     }
 
+@st.cache_data(ttl=3600)  # 1시간 캐시
 def get_korean_stocks():
-    """한국 주식 목록 가져오기"""
+    """한국 주식 목록 가져오기 (전체 종목)"""
     if not PYKRX_AVAILABLE:
         return get_fallback_stocks()
     
     try:
-        # KOSPI
-        kospi_tickers = stock.get_market_ticker_list(market="KOSPI")
-        kospi_names = [stock.get_market_ticker_name(ticker) for ticker in kospi_tickers[:30]]
-        
         all_stocks = {}
-        for ticker, name in zip(kospi_tickers[:30], kospi_names):
-            all_stocks["{} ({})".format(name, ticker)] = "{}.KS".format(ticker)
-            
-        return all_stocks
-    except:
+        
+        # KOSPI 전체 종목 (개선된 버전)
+        try:
+            kospi_tickers = stock.get_market_ticker_list(market="KOSPI")
+            for ticker in kospi_tickers:
+                try:
+                    name = stock.get_market_ticker_name(ticker)
+                    if name and len(name.strip()) > 0:
+                        all_stocks["{} ({})".format(name, ticker)] = "{}.KS".format(ticker)
+                except:
+                    continue
+        except Exception as e:
+            pass  # KOSPI 실패시 계속 진행
+        
+        # KOSDAQ 전체 종목 (개선된 버전) 
+        try:
+            kosdaq_tickers = stock.get_market_ticker_list(market="KOSDAQ")
+            for ticker in kosdaq_tickers:
+                try:
+                    name = stock.get_market_ticker_name(ticker)
+                    if name and len(name.strip()) > 0:
+                        all_stocks["{} ({})".format(name, ticker)] = "{}.KQ".format(ticker)
+                except:
+                    continue
+        except Exception as e:
+            pass  # KOSDAQ 실패시 계속 진행
+        
+        # 데이터가 로드되었으면 반환, 아니면 fallback 사용
+        if len(all_stocks) > 0:
+            return all_stocks
+        else:
+            return get_fallback_stocks()
+        
+    except Exception as e:
         return get_fallback_stocks()
 
 def search_stocks(search_term):
-    """종목 검색 함수"""
-    if not search_term:
-        return []
+    """종목 검색 함수 (안정화된 버전)"""
+    # 빈 검색어 처리
+    if not search_term or len(search_term.strip()) < 1:
+        # 빈 검색어일 때는 인기 종목 몇 개를 반환
+        popular_stocks = [
+            "삼성전자 (005930)", "SK하이닉스 (000660)", "NAVER (035420)", 
+            "카카오 (035720)", "LG에너지솔루션 (373220)", "삼성바이오로직스 (207940)"
+        ]
+        return popular_stocks
     
-    all_stocks = get_korean_stocks()
-    results = []
-    
-    for name, symbol in all_stocks.items():
-        if search_term.lower() in name.lower():
-            results.append(name)
-            if len(results) >= 10:
-                break
+    try:
+        search_term = search_term.strip()
+        all_stocks = get_korean_stocks()
+        
+        # 종목 데이터가 없는 경우 기본 리스트에서 검색
+        if not all_stocks or len(all_stocks) == 0:
+            all_stocks = get_fallback_stocks()
+        
+        results = []
+        exact_matches = []
+        partial_matches = []
+        
+        # 검색어를 소문자로 변환
+        search_lower = search_term.lower()
+        
+        for name, symbol in all_stocks.items():
+            try:
+                name_lower = name.lower()
                 
-    return results
+                # 정확한 매칭 (회사명이나 코드가 정확히 일치)
+                if search_lower in name_lower:
+                    # 종목코드 직접 검색
+                    if search_term in name and "(" in name:
+                        exact_matches.append(name)
+                    # 회사명 시작 부분 매칭
+                    elif name_lower.startswith(search_lower):
+                        exact_matches.append(name)
+                    # 부분 매칭
+                    else:
+                        partial_matches.append(name)
+            except:
+                continue  # 개별 종목 처리 오류시 건너뛰기
+        
+        # 정확한 매칭을 먼저, 그 다음 부분 매칭
+        results = exact_matches[:10] + partial_matches[:10]
+        
+        # 결과가 없으면 유사한 종목 추천
+        if len(results) == 0:
+            # 부분적으로라도 매칭되는 종목 찾기
+            for name in all_stocks.keys():
+                if any(char in name.lower() for char in search_lower):
+                    results.append(name)
+                    if len(results) >= 5:
+                        break
+        
+        # 최대 20개까지 반환
+        return results[:20]
+        
+    except Exception as e:
+        # 최종 fallback: 기본 종목들
+        basic_stocks = [
+            "삼성전자 (005930)", "SK하이닉스 (000660)", "NAVER (035420)", 
+            "카카오 (035720)", "LG에너지솔루션 (373220)"
+        ]
+        if search_term:
+            return [stock for stock in basic_stocks if search_term.lower() in stock.lower()]
+        return basic_stocks[:3]
 
 # KIS API 통합 함수들
 def get_stock_data_with_kis(symbol):
@@ -1021,8 +1234,8 @@ def main():
         col_intro1, col_intro2 = st.columns([3, 1])
         with col_intro1:
             st.markdown("""
-            **🎯 종목을 검색하여 공정가치 분석, 업종 비교, 매매 신호를 확인하세요!**  
-            📊 5가지 기술적 지표 종합 분석 | 🏭 동종업계 비교 | 🚦 실시간 매매 신호 | 📚 상세한 용어 설명
+            **🎯 국내 전 종목 검색으로 공정가치 분석, 업종 비교, 매매 신호를 확인하세요!**  
+            🔍 **KOSPI + KOSDAQ 전 종목 지원** | 📊 5가지 기술적 지표 종합 분석 | 🏭 동종업계 비교 | 🚦 실시간 매매 신호
             """)
         with col_intro2:
             if st.button("📚 사용법 보기", help="대시보드 사용법과 투자 가이드를 확인하세요"):
@@ -1032,15 +1245,77 @@ def main():
     
     # 사이드바
     st.sidebar.header("🔍 종목 선택")
-    st.sidebar.markdown("📝 **사용법:** 검색창에 종목명을 입력하세요")
-    st.sidebar.markdown("💡 **예시:** 삼성전자, 네이버, 카카오")
+    st.sidebar.markdown("🚀 **전체 종목 검색 가능** (KOSPI + KOSDAQ)")
+    
+    # 검색 상태 표시
+    with st.sidebar.container():
+        stocks_count = len(get_korean_stocks())
+        if stocks_count > 100:
+            st.sidebar.success(f"✅ {stocks_count:,}개 종목 로드 완료")
+        elif stocks_count > 50:
+            st.sidebar.info(f"ℹ️ {stocks_count}개 주요 종목 사용 중")
+        else:
+            st.sidebar.warning(f"⚠️ 기본 {stocks_count}개 종목만 사용 가능")
+    
+    st.sidebar.markdown("💡 **검색 방법:**")
+    st.sidebar.markdown("- 회사명: 삼성전자, LG전자, 카카오")
+    st.sidebar.markdown("- 종목코드: 005930, 035420, 035720")
+    st.sidebar.markdown("- 영문명: NAVER, SK Hynix")
+    st.sidebar.markdown("- 부분검색: 삼성, LG, 현대")
     
     # 종목 검색
-    selected_name = st_searchbox(
-        search_function=search_stocks,
-        placeholder="예: 삼성전자, NAVER, 005930...",
-        key="stock_searchbox"
-    )
+    try:
+        selected_name = st_searchbox(
+            search_function=search_stocks,
+            placeholder="🔍 회사명 또는 종목코드로 검색 (예: 삼성전자, 005930)",
+            key="stock_searchbox",
+            clear_on_submit=False,
+            rerun_on_update=True
+        )
+    except Exception as e:
+        st.sidebar.error(f"검색박스 오류: {e}")
+        # 기본 선택박스로 fallback
+        all_stocks_list = list(get_korean_stocks().keys())[:50]  # 상위 50개만
+        selected_name = st.sidebar.selectbox(
+            "종목 선택",
+            options=all_stocks_list,
+            index=0 if len(all_stocks_list) > 0 else None
+        )
+    
+    # 디버그 정보 표시 (더 안정화된 버전)
+    with st.sidebar.expander("🔧 디버그 정보", expanded=False):
+        try:
+            st.write("**시스템 상태:**")
+            st.write(f"• pykrx 사용 가능: {PYKRX_AVAILABLE}")
+            
+            all_stocks_debug = get_korean_stocks()
+            st.write(f"• 로드된 종목 수: {len(all_stocks_debug)}")
+            
+            if len(all_stocks_debug) > 0:
+                st.write("**샘플 종목 (처음 5개):**")
+                for i, (name, symbol) in enumerate(list(all_stocks_debug.items())[:5]):
+                    st.write(f"{i+1}. {name} → {symbol}")
+                
+                # 검색 테스트
+                st.write("**검색 테스트:**")
+                test_queries = ["삼성", "LG", "005930"]
+                for query in test_queries:
+                    test_results = search_stocks(query)
+                    st.write(f"'{query}' → {len(test_results)}개 결과")
+                    if len(test_results) > 0:
+                        st.write(f"  예: {test_results[0]}")
+            else:
+                st.error("❌ 종목 데이터 로드 실패!")
+                fallback = get_fallback_stocks()
+                st.write(f"• Fallback 종목 수: {len(fallback)}")
+                
+            # 현재 선택된 종목 표시
+            if selected_name:
+                st.write(f"**현재 선택:** {selected_name}")
+                
+        except Exception as e:
+            st.error(f"디버그 정보 표시 오류: {e}")
+            st.write("기본 검색 기능을 사용합니다.")
     
     # 전체 종목 리스트
     all_stocks = get_korean_stocks()
@@ -1084,79 +1359,139 @@ def main():
         else:
             display_delayed_data(data, enhanced_data.get('data_source', 'yfinance'))
         
-        st.markdown("---")
-        
-        # 차트 표시
-        st.subheader("📊 주가 차트")
-        chart = create_candlestick_chart(data, selected_name)
-        if chart:
-            st.plotly_chart(chart, use_container_width=True)
-        
-        # 공정가치 분석
-        st.markdown("---")
-        st.subheader("⚖️ 공정가치 분석")
-        
-        # 현재 가격 정보 (데이터에서 가져오기)
+        # 현재 가격 정보 (전체 탭에서 사용)
         current_price = data['Close'].iloc[-1] if not data.empty else 0
-        fair_value_analysis = analyze_fair_value(data, current_price)
         
-        # 분석 결과 표시
-        col_analysis1, col_analysis2, col_analysis3 = st.columns(3)
+        # 탭 구조로 콘텐츠 분리
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📊 차트 분석", 
+            "⚖️ 공정가치 분석", 
+            "🏭 업종 비교", 
+            "🚦 매매 신호", 
+            "📚 투자 가이드"
+        ])
         
-        with col_analysis1:
-            score = fair_value_analysis['fair_value_score']
-            if score >= 70:
-                score_color = "🟢"
-                score_desc = "매수 권장"
-            elif score >= 55:
-                score_color = "🟡"
-                score_desc = "약매수"
-            elif score <= 30:
-                score_color = "🔴"
-                score_desc = "매도 권장"
-            elif score <= 45:
-                score_color = "🟠"
-                score_desc = "약매도"
-            else:
-                score_color = "⚪"
-                score_desc = "중립"
+        with tab1:
+            st.subheader("📊 주가 차트 및 기술적 지표")
+            chart = create_candlestick_chart(data, selected_name)
+            if chart:
+                st.plotly_chart(chart, use_container_width=True)
             
-            st.metric(
-                "공정가치 점수",
-                "{} {}/100".format(score_color, score),
-                "({})".format(score_desc),
-                help="RSI, 볼린저밴드, 이동평균선, MACD를 종합한 점수입니다. 70점 이상은 매수, 30점 이하는 매도를 의미합니다."
-            )
+            # 기술적 지표 요약
+            if not data.empty:
+                latest = data.iloc[-1]
+                
+                st.markdown("### 📈 주요 기술적 지표")
+                
+                col_tech1, col_tech2, col_tech3, col_tech4 = st.columns(4)
+                
+                with col_tech1:
+                    rsi_value = latest['RSI'] if 'RSI' in latest and not pd.isna(latest['RSI']) else 0
+                    if rsi_value > 70:
+                        rsi_status = "과매수"
+                        rsi_color = "🔴"
+                    elif rsi_value < 30:
+                        rsi_status = "과매도"
+                        rsi_color = "🟢"
+                    else:
+                        rsi_status = "중립"
+                        rsi_color = "🟡"
+                    st.metric("RSI", f"{rsi_value:.1f}", f"{rsi_color} {rsi_status}")
+                
+                with col_tech2:
+                    macd = latest['MACD'] if 'MACD' in latest and not pd.isna(latest['MACD']) else 0
+                    macd_signal = latest['MACD_Signal'] if 'MACD_Signal' in latest and not pd.isna(latest['MACD_Signal']) else 0
+                    macd_diff = macd - macd_signal
+                    macd_status = "상승" if macd_diff > 0 else "하락"
+                    macd_color = "🟢" if macd_diff > 0 else "🔴"
+                    st.metric("MACD", f"{macd:.2f}", f"{macd_color} {macd_status}")
+                
+                with col_tech3:
+                    ma20 = latest['MA_20'] if 'MA_20' in latest and not pd.isna(latest['MA_20']) else current_price
+                    ma_ratio = ((current_price / ma20 - 1) * 100) if ma20 > 0 else 0
+                    ma_status = "돌파" if ma_ratio > 0 else "이탈"
+                    ma_color = "🟢" if ma_ratio > 0 else "🔴"
+                    st.metric("MA20 대비", f"{ma_ratio:+.1f}%", f"{ma_color} {ma_status}")
+                
+                with col_tech4:
+                    bb_upper = latest['BB_Upper'] if 'BB_Upper' in latest and not pd.isna(latest['BB_Upper']) else current_price
+                    bb_lower = latest['BB_Lower'] if 'BB_Lower' in latest and not pd.isna(latest['BB_Lower']) else current_price
+                    if bb_upper > bb_lower:
+                        bb_position = ((current_price - bb_lower) / (bb_upper - bb_lower)) * 100
+                        if bb_position > 80:
+                            bb_status = "상단"
+                            bb_color = "🔴"
+                        elif bb_position < 20:
+                            bb_status = "하단"
+                            bb_color = "🟢"
+                        else:
+                            bb_status = "중간"
+                            bb_color = "🟡"
+                        st.metric("볼린저밴드", f"{bb_position:.0f}%", f"{bb_color} {bb_status}")
+                    else:
+                        st.metric("볼린저밴드", "N/A", "🔄 계산중")
         
-        with col_analysis2:
-            recommendation = fair_value_analysis['recommendation']
-            confidence = fair_value_analysis['confidence']
+        with tab2:
+            st.subheader("⚖️ 공정가치 분석")
+            fair_value_analysis = analyze_fair_value(data, current_price)
             
-            if recommendation == "매수":
-                rec_color = "🟢"
-            elif recommendation == "약매수":
-                rec_color = "🟡"
-            elif recommendation == "매도":
-                rec_color = "🔴"
-            elif recommendation == "약매도":
-                rec_color = "🟠"
-            else:
-                rec_color = "⚪"
+            # 분석 결과 표시
+            col_analysis1, col_analysis2, col_analysis3 = st.columns(3)
             
-            st.metric(
-                "투자 추천",
-                "{} {}".format(rec_color, recommendation),
-                "신뢰도: {:.1f}%".format(confidence)
-            )
-        
-        with col_analysis3:
-            # 볼린저밴드 위치 표시
-            bb_position = fair_value_analysis['details'].get('bollinger', {}).get('position', 50)
-            st.metric(
-                "볼린저밴드 위치",
-                "{:.1f}%".format(bb_position),
-                help="볼린저밴드 내 현재가 위치 (0%=하단, 100%=상단)"
-            )
+            with col_analysis1:
+                score = fair_value_analysis['fair_value_score']
+                if score >= 70:
+                    score_color = "🟢"
+                    score_desc = "매수 권장"
+                elif score >= 55:
+                    score_color = "🟡"
+                    score_desc = "약매수"
+                elif score <= 30:
+                    score_color = "🔴"
+                    score_desc = "매도 권장"
+                elif score <= 45:
+                    score_color = "🟠"
+                    score_desc = "약매도"
+                else:
+                    score_color = "⚪"
+                    score_desc = "중립"
+                
+                st.metric(
+                    "공정가치 점수",
+                    "{} {}/100".format(score_color, score),
+                    "({})".format(score_desc),
+                    help="RSI, 볼린저밴드, 이동평균선, MACD를 종합한 점수입니다. 70점 이상은 매수, 30점 이하는 매도를 의미합니다."
+                )
+            
+            with col_analysis2:
+                recommendation = fair_value_analysis['recommendation']
+                confidence = fair_value_analysis['confidence']
+                
+                if recommendation == "매수":
+                    rec_color = "🟢"
+                elif recommendation == "약매수":
+                    rec_color = "🟡"
+                elif recommendation == "매도":
+                    rec_color = "🔴"
+                elif recommendation == "약매도":
+                    rec_color = "🟠"
+                else:
+                    rec_color = "⚪"
+                
+                st.metric(
+                    "투자 추천",
+                    "{} {}".format(rec_color, recommendation),
+                    "신뢰도: {:.1f}%".format(confidence)
+                )
+            
+            with col_analysis3:
+                # 볼린저밴드 위치 표시
+                bb_position = fair_value_analysis['details'].get('bollinger', {}).get('position', 50)
+                st.metric(
+                    "볼린저밴드 위치",
+                    "{:.1f}%".format(bb_position),
+                    help="볼린저밴드 내 현재가 위치 (0%=하단, 100%=상단)"
+                )
         
         # 상세 분석 결과
         with st.expander("📈 상세 분석 결과", expanded=True):
@@ -1211,59 +1546,283 @@ def main():
                     st.markdown("• MACD 하락 신호")
                 else:
                     st.markdown("• MACD 중립")
-        
-        # 업종 비교 분석
-        st.markdown("---")
-        st.subheader("🏭 업종 비교 분석")
-        
-        industry_analysis = analyze_industry_comparison(selected_symbol, data)
-        
-        if industry_analysis['comparison_available']:
-            # 업종 정보 표시
-            col_industry1, col_industry2, col_industry3 = st.columns(3)
             
-            with col_industry1:
-                st.metric(
-                    "업종",
-                    industry_analysis['industry'],
-                    help="현재 종목이 속한 업종 분류"
-                )
-            
-            with col_industry2:
-                comparison_score = industry_analysis['comparison_score']
-                if comparison_score >= 70:
-                    score_color = "🟢"
-                elif comparison_score >= 55:
-                    score_color = "🟡"
-                elif comparison_score <= 30:
-                    score_color = "🔴"
-                elif comparison_score <= 45:
-                    score_color = "🟠"
-                else:
-                    score_color = "⚪"
+            # 상세 분석 결과
+            with st.expander("📈 상세 분석 결과", expanded=True):
+                st.markdown("**🎯 주요 판단 근거:**")
+                for reason in fair_value_analysis['reasons']:
+                    st.markdown("• {}".format(reason))
                 
-                st.metric(
-                    "업종 내 상대 점수",
-                    "{} {}/100".format(score_color, comparison_score),
-                    help="동종업계 대비 상대적 매력도 (높을수록 업종 내 우위)"
-                )
-            
-            with col_industry3:
-                relative_rec = industry_analysis['relative_recommendation']
-                if "강력 매수" in relative_rec:
-                    rec_color = "🟢"
-                elif "매수" in relative_rec:
-                    rec_color = "🟡"
-                elif "매도" in relative_rec:
-                    rec_color = "🔴"
-                else:
-                    rec_color = "⚪"
+                st.markdown("---")
                 
-                st.metric(
-                    "업종 내 추천",
-                    "{} {}".format(rec_color, relative_rec),
-                    help="동종업계 대비 상대적 투자 추천"
-                )
+                # 지표별 세부 분석
+                col_detail1, col_detail2 = st.columns(2)
+                
+                with col_detail1:
+                    st.markdown("**📊 기술적 지표:**")
+                    
+                    # RSI 분석
+                    rsi_data = fair_value_analysis['details'].get('rsi', {})
+                    if rsi_data:
+                        rsi_value = rsi_data.get('value', 0)
+                        st.markdown("**RSI ({:.1f}):** {}".format(
+                            rsi_value,
+                            "과매도" if rsi_value < 30 else "과매수" if rsi_value > 70 else "중립"
+                        ))
+                    
+                    # 볼린저밴드 분석
+                    bb_data = fair_value_analysis['details'].get('bollinger', {})
+                    if bb_data:
+                        bb_pos = bb_data.get('position', 50)
+                        st.markdown("**볼린저밴드:** {}".format(
+                            "하단권" if bb_pos < 30 else "상단권" if bb_pos > 70 else "중간권"
+                        ))
+                
+                with col_detail2:
+                    st.markdown("**📈 추세 분석:**")
+                    
+                    # 이동평균선 분석
+                    ma_score = fair_value_analysis['details'].get('moving_average', {}).get('score', 0)
+                    if ma_score > 15:
+                        st.markdown("• 주요 이동평균선 상향 돌파")
+                    elif ma_score > 0:
+                        st.markdown("• 일부 이동평균선 상향 돌파")
+                    else:
+                        st.markdown("• 이동평균선 하락 배열")
+                    
+                    # MACD 분석
+                    macd_score = fair_value_analysis['details'].get('macd', {}).get('score', 0)
+                    if macd_score > 0:
+                        st.markdown("• MACD 상승 신호")
+                    elif macd_score < 0:
+                        st.markdown("• MACD 하락 신호")
+                    else:
+                        st.markdown("• MACD 중립")
+        
+        with tab3:
+            st.subheader("🏭 업종 비교 분석")
+            industry_analysis = analyze_industry_comparison(selected_symbol, data)
+            
+            if industry_analysis['comparison_available']:
+                # 업종 정보 표시
+                col_industry1, col_industry2, col_industry3 = st.columns(3)
+                
+                with col_industry1:
+                    st.metric(
+                        "업종",
+                        industry_analysis['industry'],
+                        help="현재 종목이 속한 업종 분류"
+                    )
+                
+                with col_industry2:
+                    comparison_score = industry_analysis['comparison_score']
+                    if comparison_score >= 70:
+                        score_color = "🟢"
+                    elif comparison_score >= 55:
+                        score_color = "🟡"
+                    elif comparison_score <= 30:
+                        score_color = "🔴"
+                    elif comparison_score <= 45:
+                        score_color = "🟠"
+                    else:
+                        score_color = "⚪"
+                    
+                    st.metric(
+                        "업종 내 상대 점수",
+                        "{} {}/100".format(score_color, comparison_score),
+                        help="동종업계 대비 상대적 매력도 (높을수록 업종 내 우위)"
+                    )
+                
+                with col_industry3:
+                    relative_rec = industry_analysis['relative_recommendation']
+                    if "강력 매수" in relative_rec:
+                        rec_color = "🟢"
+                    elif "매수" in relative_rec:
+                        rec_color = "🟡"
+                    elif "매도" in relative_rec:
+                        rec_color = "🔴"
+                    else:
+                        rec_color = "⚪"
+                    
+                    st.metric(
+                        "업종 내 추천",
+                        "{} {}".format(rec_color, relative_rec),
+                        help="동종업계 대비 상대적 투자 추천"
+                    )
+            else:
+                st.info("📊 업종 비교 분석: {}".format(industry_analysis['message']))
+                st.markdown("**참고:** 충분한 데이터가 확보되면 동종업계 대비 상대적 위치를 분석하여 제공합니다.")
+        
+        with tab4:
+            st.subheader("🚦 매매 신호 분석")
+            trading_signals = analyze_trading_signals(data, current_price)
+            
+            if trading_signals['signals_available']:
+                # 종합 신호 표시
+                col_signal1, col_signal2, col_signal3, col_signal4 = st.columns(4)
+                
+                with col_signal1:
+                    st.metric(
+                        "종합 신호",
+                        "{} {}".format(trading_signals['signal_color'], trading_signals['overall_signal']),
+                        help="기술적 지표 종합 매매 신호"
+                    )
+                
+                with col_signal2:
+                    st.metric(
+                        "신호 강도",
+                        "{:.1f}".format(abs(trading_signals['signal_strength'])),
+                        help="매매 신호의 강도 (0-10, 높을수록 강함)"
+                    )
+                
+                with col_signal3:
+                    st.metric(
+                        "신뢰도",
+                        "{:.1f}%".format(trading_signals['confidence']),
+                        help="신호의 신뢰도 (60% 이상 권장)"
+                    )
+                
+                with col_signal4:
+                    st.metric(
+                        "위험도",
+                        trading_signals['risk_level'],
+                        help="현재 시장 상황의 위험도"
+                    )
+                
+                # 목표가 및 손절가 표시
+                if trading_signals['signal_strength'] != 0:
+                    col_price1, col_price2, col_price3 = st.columns(3)
+                    
+                    with col_price1:
+                        target1 = trading_signals['target_price_1']
+                        st.metric(
+                            "1차 목표가" if trading_signals['signal_strength'] > 0 else "1차 목표가(하락)",
+                            "{:,.0f}원".format(target1),
+                            "{:+.1f}%".format((target1 / current_price - 1) * 100)
+                        )
+                    
+                    with col_price2:
+                        target2 = trading_signals['target_price_2']
+                        st.metric(
+                            "2차 목표가" if trading_signals['signal_strength'] > 0 else "2차 목표가(하락)",
+                            "{:,.0f}원".format(target2),
+                            "{:+.1f}%".format((target2 / current_price - 1) * 100)
+                        )
+                    
+                    with col_price3:
+                        stop_loss = trading_signals['stop_loss']
+                        st.metric(
+                            "손절가",
+                            "{:,.0f}원".format(stop_loss),
+                            "{:+.1f}%".format((stop_loss / current_price - 1) * 100)
+                        )
+            else:
+                st.info("🚦 매매 신호 분석: {}".format(trading_signals['message']))
+        
+        with tab5:
+            st.subheader("📚 투자 가이드 및 용어 설명")
+            
+            # 기본 사용법
+            with st.expander("🚀 대시보드 사용법", expanded=True):
+                st.markdown("""
+                **📈 Smart Trading Dashboard 활용 가이드**
+                
+                1. **종목 선택**: 상단 검색창에서 관심 종목을 검색하고 선택하세요
+                2. **차트 분석**: 첫 번째 탭에서 가격 차트와 기술적 지표를 확인하세요
+                3. **공정가치**: 두 번째 탭에서 AI 기반 종합 분석 점수를 확인하세요
+                4. **업종 비교**: 세 번째 탭에서 동종업계 대비 상대적 위치를 파악하세요
+                5. **매매 신호**: 네 번째 탭에서 구체적인 매매 타이밍과 목표가를 확인하세요
+                
+                **🎯 투자 의사결정 프로세스:**
+                - 모든 탭의 정보를 종합적으로 검토
+                - 70점 이상의 공정가치 점수와 60% 이상의 신호 신뢰도 확인
+                - 개인의 투자 목표와 리스크 허용도 고려
+                """)
+            
+            # 기술적 지표 설명
+            with st.expander("📊 기술적 지표 설명"):
+                st.markdown("""
+                **RSI (Relative Strength Index)**
+                - 의미: 상대강도지수, 과매수/과매도 판단
+                - 해석: 70 이상(과매수), 30 이하(과매도), 30-70(중립)
+                
+                **MACD (Moving Average Convergence Divergence)**
+                - 의미: 이동평균수렴확산지수, 추세 변화 감지
+                - 해석: MACD > Signal(상승), MACD < Signal(하락)
+                
+                **볼린저 밴드 (Bollinger Bands)**
+                - 의미: 가격의 변동성과 상대적 고저 판단
+                - 해석: 상단 터치(고점권), 하단 터치(저점권)
+                
+                **이동평균선 (Moving Average)**
+                - 의미: 일정 기간 평균가격, 추세 방향 확인
+                - 해석: 가격 > 이평선(상승), 가격 < 이평선(하락)
+                """)
+            
+            # 투자 원칙
+            with st.expander("💡 성공적인 투자를 위한 원칙"):
+                st.markdown("""
+                **🎯 기본 투자 원칙**
+                
+                1. **분산투자**: 한 종목에 집중하지 말고 여러 종목에 분산
+                2. **장기투자**: 단기 변동에 휩쓸리지 말고 장기적 관점 유지
+                3. **리스크 관리**: 손절매 기준을 정하고 철저히 준수
+                4. **감정 제어**: 욕심과 공포를 제어하고 원칙에 따라 투자
+                5. **지속적 학습**: 시장과 기업에 대한 지식을 꾸준히 습득
+                
+                **📚 투자 전 체크리스트**
+                
+                ✅ 기업의 사업 모델과 경쟁력 이해
+                ✅ 재무상태와 성장성 검토
+                ✅ 기술적 지표와 차트 패턴 분석
+                ✅ 시장 상황과 업종 동향 파악
+                ✅ 개인의 투자 목표와 기간 설정
+                ✅ 리스크 관리 방안 수립
+                """)
+            
+            # 면책사항
+            with st.expander("⚠️ 투자 유의사항 및 면책사항"):
+                st.markdown("""
+                **🚨 중요한 면책사항**
+                
+                이 대시보드에서 제공하는 모든 정보와 분석은:
+                
+                1. **교육 목적**으로만 제공됩니다
+                2. **투자 권유나 추천이 아닙니다**
+                3. **투자 결정은 본인의 책임**입니다
+                4. **과거 데이터 기반 분석**으로 미래를 보장하지 않습니다
+                
+                **💰 투자 시 유의사항**
+                
+                - 잃어도 괜찮은 여유자금으로만 투자하세요
+                - 투자 전 충분한 공부와 분석을 하세요
+                - 분산투자로 리스크를 관리하세요
+                - 본인만의 투자 원칙을 세우고 지키세요
+                
+                **📊 데이터 정확성 안내**
+                
+                - 현재 Yahoo Finance 데이터 사용 (15-20분 지연)
+                - 실시간 매매에는 실시간 데이터를 별도로 확인하세요
+                - 시스템 오류나 데이터 오류 가능성 항상 존재
+                """)
+            
+            # 추가 기능 안내
+            with st.expander("🔮 향후 개선 계획"):
+                st.markdown("""
+                **🚀 예정된 업데이트**
+                
+                - 한국투자증권 API 연동으로 실시간 데이터 제공
+                - 더 많은 기술적 지표와 분석 기능 추가
+                - 포트폴리오 관리 기능
+                - 백테스팅 및 성과 분석 도구
+                - 뉴스 및 공시 정보 연동
+                - 사용자 피드백을 반영한 지속적인 개선
+                
+                **💬 피드백 및 제안**
+                
+                여러분의 소중한 의견을 기다립니다!
+                GitHub Issues를 통해 버그 신고나 기능 제안을 해주세요.
+                """)
             
             # 상세 비교 분석
             with st.expander("📊 업종 비교 상세 분석", expanded=True):
@@ -1295,410 +1854,7 @@ def main():
                     st.markdown("• **20일선 대비**: {:.1f}%".format((industry_avg['ma20_ratio'] - 1) * 100))
                     st.markdown("• **볼린저밴드 위치**: {:.1f}%".format(industry_avg['bb_position']))
         
-        else:
-            st.info("📊 업종 비교 분석: {}".format(industry_analysis['message']))
-            st.markdown("**참고:** 충분한 데이터가 확보되면 동종업계 대비 상대적 위치를 분석하여 제공합니다.")
         
-        # 매매 신호 분석
-        st.markdown("---")
-        st.subheader("🚦 매매 신호 분석")
-        
-        trading_signals = analyze_trading_signals(data, current_price)
-        
-        if trading_signals['signals_available']:
-            # 종합 신호 표시
-            col_signal1, col_signal2, col_signal3, col_signal4 = st.columns(4)
-            
-            with col_signal1:
-                st.metric(
-                    "종합 신호",
-                    "{} {}".format(trading_signals['signal_color'], trading_signals['overall_signal']),
-                    help="기술적 지표 종합 매매 신호"
-                )
-            
-            with col_signal2:
-                signal_strength = trading_signals['signal_strength']
-                strength_display = "+" + str(signal_strength) if signal_strength > 0 else str(signal_strength)
-                st.metric(
-                    "신호 강도",
-                    "{}/100".format(strength_display),
-                    help="매매 신호 강도 (-100~+100, 양수=매수, 음수=매도)"
-                )
-            
-            with col_signal3:
-                confidence = trading_signals['confidence']
-                st.metric(
-                    "신뢰도",
-                    "{:.1f}%".format(confidence),
-                    help="신호 분석 신뢰도"
-                )
-            
-            with col_signal4:
-                volatility = trading_signals['volatility']
-                st.metric(
-                    "변동성",
-                    "{:.1f}%".format(volatility),
-                    help="20일 기준 가격 변동성"
-                )
-            
-            # 목표가 및 손절가 표시
-            if trading_signals['signal_strength'] != 0:
-                col_price1, col_price2, col_price3 = st.columns(3)
-                
-                with col_price1:
-                    target1 = trading_signals['target_price_1']
-                    st.metric(
-                        "1차 목표가" if trading_signals['signal_strength'] > 0 else "1차 목표가(하락)",
-                        "{:,.0f}원".format(target1),
-                        "{:+.1f}%".format((target1 / current_price - 1) * 100)
-                    )
-                
-                with col_price2:
-                    target2 = trading_signals['target_price_2']
-                    st.metric(
-                        "2차 목표가" if trading_signals['signal_strength'] > 0 else "2차 목표가(하락)",
-                        "{:,.0f}원".format(target2),
-                        "{:+.1f}%".format((target2 / current_price - 1) * 100)
-                    )
-                
-                with col_price3:
-                    stop_loss = trading_signals['stop_loss']
-                    st.metric(
-                        "손절가",
-                        "{:,.0f}원".format(stop_loss),
-                        "{:+.1f}%".format((stop_loss / current_price - 1) * 100)
-                    )
-            
-            # 상세 신호 분석
-            with st.expander("🔍 상세 매매 신호 분석", expanded=True):
-                col_signals1, col_signals2 = st.columns(2)
-                
-                with col_signals1:
-                    if trading_signals['entry_signals']:
-                        st.markdown("**🟢 매수 신호:**")
-                        for signal in trading_signals['entry_signals']:
-                            st.markdown("• {}".format(signal))
-                    
-                    if trading_signals['general_signals']:
-                        st.markdown("**📊 추세 분석:**")
-                        for signal in trading_signals['general_signals']:
-                            st.markdown("• {}".format(signal))
-                
-                with col_signals2:
-                    if trading_signals['exit_signals']:
-                        st.markdown("**🔴 매도 신호:**")
-                        for signal in trading_signals['exit_signals']:
-                            st.markdown("• {}".format(signal))
-                
-                # 매매 가이드라인
-                st.markdown("---")
-                st.markdown("**📋 매매 가이드라인:**")
-                
-                if trading_signals['signal_strength'] >= 25:
-                    st.markdown("""
-                    **🟢 매수 포지션 권장**
-                    • 분할 매수 전략 고려 (2-3회 분할)
-                    • 1차 목표가 도달 시 일부 수익 실현
-                    • 손절가 설정으로 리스크 관리
-                    """)
-                elif trading_signals['signal_strength'] <= -25:
-                    st.markdown("""
-                    **🔴 매도 포지션 권장**
-                    • 보유 종목 있다면 분할 매도 고려
-                    • 반등 시 추가 매도 기회 활용
-                    • 손절가 상향 돌파 시 추가 하락 주의
-                    """)
-                else:
-                    st.markdown("""
-                    **⚪ 관망 권장**
-                    • 명확한 신호 나타날 때까지 대기
-                    • 지지/저항선 돌파 여부 관찰
-                    • 거래량 증가와 함께 신호 확인
-                    """)
-        
-        else:
-            st.info("🚦 매매 신호 분석: {}".format(trading_signals['message']))
-            st.markdown("**참고:** 충분한 데이터가 확보되면 기술적 지표 기반 매매 신호를 제공합니다.")
-        
-        # 용어 설명 및 도움말
-        st.markdown("---")
-        st.subheader("📚 투자 용어 가이드")
-        
-        # 탭으로 구분된 용어 설명
-        tab1, tab2, tab3, tab4 = st.tabs(["📈 차트 기초", "📊 기술 지표", "🚦 매매 신호", "💡 투자 가이드"])
-        
-        with tab1:
-            st.markdown("""
-            ### 📈 캔들스틱 차트 이해하기
-            
-            **🕯️ 캔들의 구성 요소:**
-            - **몸통(실체)**: 시가와 종가 사이의 구간
-            - **꼬리(그림자)**: 고가와 저가를 나타내는 선
-            
-            **🎨 색깔의 의미:**
-            - **🟢 파란색/초록색 캔들**: 상승 (시가 < 종가)
-              - 해당 기간 동안 주가가 올랐음을 의미
-              - 매수세가 강했던 시점
-            - **🔴 빨간색 캔들**: 하락 (시가 > 종가)
-              - 해당 기간 동안 주가가 내렸음을 의미
-              - 매도세가 강했던 시점
-            
-            **📏 캔들의 형태가 말하는 것:**
-            - **긴 몸통**: 강한 상승 또는 하락
-            - **짧은 몸통**: 보합세, 방향성 부족
-            - **긴 위꼬리**: 고점에서 저항, 매도 압력
-            - **긴 아래꼬리**: 저점에서 지지, 매수 관심
-            
-            ---
-            
-            ### 🔄 이동평균선의 의미
-            
-            **📊 이동평균선이란?**
-            - 일정 기간 동안의 주가 평균을 연결한 선
-            - 주가의 전반적인 흐름과 추세를 파악하는 도구
-            
-            **🏃‍♂️ 단기 vs 장기 이동평균:**
-            - **MA5 (5일선)**: 단기 추세, 빠른 반응
-            - **MA20 (20일선)**: 중기 추세, 안정적 신호
-            - **MA60 (60일선)**: 장기 추세, 큰 흐름 파악
-            
-            **🎯 이동평균선 활용법:**
-            - **지지선**: 주가가 이동평균선 위에서 지지받는 경우
-            - **저항선**: 주가가 이동평균선에서 막히는 경우
-            - **정배열**: 단기선 > 중기선 > 장기선 (상승추세)
-            - **역배열**: 단기선 < 중기선 < 장기선 (하락추세)
-            """)
-        
-        with tab2:
-            st.markdown("""
-            ### 📊 주요 기술적 지표 완전 해설
-            
-            **🔥 RSI (상대강도지수) - 과매수/과매도 측정기**
-            
-            RSI는 주식이 과도하게 많이 팔렸는지, 많이 사졌는지 알려주는 지표입니다.
-            
-            - **0~30**: 🟢 과매도 구간 (너무 많이 팔려서 반등 가능)
-            - **30~70**: ⚪ 정상 구간 (적절한 거래)
-            - **70~100**: 🔴 과매수 구간 (너무 많이 사져서 조정 가능)
-            
-            **💡 실전 활용법:**
-            - RSI 30 이하에서 매수 타이밍 포착
-            - RSI 70 이상에서 매도 타이밍 고려
-            - 다른 지표와 함께 봐야 더 정확함
-            
-            ---
-            
-            **🎈 볼린저밴드 - 주가의 정상 범위 측정기**
-            
-            주가가 보통 움직이는 범위를 보여주는 밴드입니다.
-            
-            - **상단밴드**: 평소보다 높은 가격대 (매도 신호 가능)
-            - **중심선**: 20일 평균가격 (균형점)
-            - **하단밴드**: 평소보다 낮은 가격대 (매수 신호 가능)
-            
-            **💡 실전 활용법:**
-            - 하단밴드 터치 시 반등 기대
-            - 상단밴드 터치 시 조정 가능성
-            - 밴드가 좁아지면 큰 움직임 임박
-            
-            ---
-            
-            **⚡ MACD - 추세 변화의 신호등**
-            
-            주가 추세가 바뀌는 시점을 알려주는 지표입니다.
-            
-            - **MACD선**: 단기/장기 이동평균의 차이
-            - **시그널선**: MACD의 평균선
-            - **히스토그램**: MACD와 시그널선의 차이
-            
-            **💡 실전 활용법:**
-            - MACD선이 시그널선을 위로 뚫으면 매수 신호
-            - MACD선이 시그널선을 아래로 뚫으면 매도 신호
-            - 히스토그램이 0선 위로 올라오면 상승 모멘텀
-            
-            ---
-            
-            **🎯 스토캐스틱 - 현재 위치 파악기**
-            
-            현재 주가가 최근 고점과 저점 사이 어디에 위치하는지 알려줍니다.
-            
-            - **%K선**: 빠른 선 (민감한 반응)
-            - **%D선**: 느린 선 (%K의 평균)
-            - **80 이상**: 고점 근처 (매도 고려)
-            - **20 이하**: 저점 근처 (매수 고려)
-            
-            **💡 실전 활용법:**
-            - 20 이하에서 골든크로스 발생 시 매수 신호
-            - 80 이상에서 데드크로스 발생 시 매도 신호
-            """)
-        
-        with tab3:
-            st.markdown("""
-            ### 🚦 매매 신호 해석 가이드
-            
-            **📊 신호 강도 점수 이해하기**
-            
-            시스템에서 제공하는 -100~+100 점수의 의미:
-            
-            - **+75~+100**: 🟢 매우 강한 매수 신호
-              - 여러 지표가 동시에 매수 신호
-              - 적극적인 매수 포지션 고려
-            
-            - **+25~+74**: 🟡 매수 신호
-              - 일부 지표에서 매수 신호
-              - 신중한 매수 접근
-            
-            - **-24~+24**: ⚪ 관망
-              - 명확한 방향성 없음
-              - 추가 신호 대기 권장
-            
-            - **-74~-25**: 🟠 매도 신호
-              - 일부 지표에서 매도 신호
-              - 보유 시 일부 매도 고려
-            
-            - **-100~-75**: 🔴 매우 강한 매도 신호
-              - 여러 지표가 동시에 매도 신호
-              - 적극적인 매도 포지션 고려
-            
-            ---
-            
-            **🎯 목표가와 손절가 설정 원리**
-            
-            **📈 목표가 (Target Price):**
-            - 최근 20일 변동성을 기준으로 계산
-            - 1차 목표가: 변동성 × 1.5배
-            - 2차 목표가: 변동성 × 2.5배
-            - 단계별 수익 실현 전략 권장
-            
-            **🛡️ 손절가 (Stop Loss):**
-            - 변동성 × 1.0배 하락 지점
-            - 추가 손실 방지를 위한 안전장치
-            - 감정적 판단보다 기계적 실행 중요
-            
-            ---
-            
-            **⚠️ 신호 해석 시 주의사항**
-            
-            1. **단일 지표 의존 금지**: 여러 지표 종합 판단
-            2. **시장 상황 고려**: 전체 시장 흐름과 함께 분석
-            3. **거래량 확인**: 신호와 함께 거래량 증가 여부 확인
-            4. **리스크 관리**: 손절가 설정으로 위험 관리
-            5. **분할 매매**: 한 번에 모든 자금 투입 금지
-            """)
-        
-        with tab4:
-            st.markdown("""
-            ### 💡 현명한 투자를 위한 가이드
-            
-            **🏗️ 투자 포트폴리오 구성 원칙**
-            
-            **📊 자산 배분 전략:**
-            - **핵심 자산 (50-60%)**: 안정적인 대형주, ETF
-            - **성장 자산 (20-30%)**: 중소형 성장주
-            - **투기 자산 (10-20%)**: 고위험 고수익 종목
-            - **현금 (5-10%)**: 기회 포착용 대기자금
-            
-            **⏰ 시간 분산 투자:**
-            - 정기적 적립식 투자로 시점 리스크 분산
-            - 일시 투자보다 꾸준한 적립이 유리
-            - 하락장에서도 꾸준히 매수하는 인내심
-            
-            ---
-            
-            **🧠 심리적 함정 피하기**
-            
-            **😰 공포와 탐욕의 함정:**
-            - **공포**: 하락 시 패닉 매도 금지
-            - **탐욕**: 상승 시 과도한 추격매수 금지
-            - **FOMO**: 남들이 산다고 무작정 따라하기 금지
-            
-            **📈 장기 관점 유지:**
-            - 단기 변동에 일희일비하지 않기
-            - 기업의 본질적 가치에 집중
-            - 시장 타이밍보다 시간의 힘 활용
-            
-            ---
-            
-            **📚 지속적인 학습의 중요성**
-            
-            **📰 정보 수집:**
-            - 기업 재무제표 읽기 능력 배양
-            - 산업 동향 및 경제 지표 파악
-            - 다양한 관점의 분석 리포트 참고
-            
-            **🔄 투자 일지 작성:**
-            - 매매 이유와 결과 기록
-            - 실수에서 배우는 학습 태도
-            - 전략 수정 및 개선 지속
-            
-            ---
-            
-            **🚨 투자 시 절대 금기사항**
-            
-            1. **💳 빚내서 투자**: 절대 금지
-            2. **🎰 한 종목 올인**: 분산투자 필수
-            3. **📰 소문만 믿고 투자**: 직접 분석 후 투자
-            4. **😤 감정적 매매**: 계획된 전략 준수
-            5. **⏰ 단타 중독**: 장기 관점 유지
-            6. **📊 무작정 따라하기**: 본인만의 투자 철학 구축
-            
-            **✅ 기억하세요: 투자는 마라톤이지 단거리 달리기가 아닙니다!**
-            """)
-        
-        # 추가 도움말 섹션
-        st.markdown("---")
-        
-        with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
-            st.markdown("""
-            **Q1: 언제 매수하는 것이 좋나요?**
-            A: 여러 지표가 동시에 매수 신호를 보내고, 거래량이 증가할 때입니다. 특히 RSI가 30 이하에서 반등하거나, 골든크로스가 발생할 때 주목하세요.
-            
-            **Q2: 손절가를 꼭 지켜야 하나요?**
-            A: 네, 매우 중요합니다. 감정에 휘둘리지 않고 기계적으로 실행하는 것이 장기적으로 수익에 도움됩니다.
-            
-            **Q3: 모든 지표가 다른 신호를 보내면 어떻게 하나요?**
-            A: 이런 경우 관망하는 것이 좋습니다. 명확한 신호가 나올 때까지 기다리세요.
-            
-            **Q4: 공정가치 점수가 낮아도 주가가 오를 수 있나요?**
-            A: 네, 가능합니다. 시장은 항상 합리적이지 않으며, 단기적으로는 감정이나 이슈에 따라 움직일 수 있습니다.
-            
-            **Q5: 업종 비교에서 평균보다 낮으면 무조건 매수인가요?**
-            A: 아닙니다. 업종 전체가 하락 추세일 수도 있으므로, 절대적 지표와 함께 봐야 합니다.
-            """)
-        
-        with st.expander("⚠️ 투자 유의사항 및 면책사항", expanded=False):
-            st.markdown("""
-            **🚨 중요한 면책사항**
-            
-            이 대시보드에서 제공하는 모든 정보와 분석은:
-            
-            1. **교육 목적**으로만 제공됩니다
-            2. **투자 권유나 추천이 아닙니다**
-            3. **투자 결정은 본인의 책임**입니다
-            4. **과거 데이터 기반 분석**으로 미래를 보장하지 않습니다
-            
-            **💰 투자 시 유의사항**
-            
-            - 잃어도 괜찮은 여유자금으로만 투자하세요
-            - 투자 전 충분한 공부와 분석을 하세요
-            - 분산투자로 리스크를 관리하세요
-            - 본인만의 투자 원칙을 세우고 지키세요
-            
-            **📊 데이터 정확성 안내**
-            
-            - 현재 Yahoo Finance 데이터 사용 (15-20분 지연)
-            - 실시간 매매에는 실시간 데이터를 별도로 확인하세요
-            - 시스템 오류나 데이터 오류 가능성 항상 존재
-            
-            **🤝 향후 개선 계획**
-            
-            - 한국투자증권 API 연동으로 실시간 데이터 제공 예정
-            - 더 많은 기술적 지표와 분석 기능 추가 예정
-            - 사용자 피드백을 반영한 지속적인 개선
-            """)
-        
-        # 기존 기본 정보는 삭제하고 위의 상세한 탭 구조로 대체
-    
     # 데이터가 비어있는 경우 처리
     if data.empty:
         error_message = "{} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요.".format(selected_name)
