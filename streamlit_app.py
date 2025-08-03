@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Streamlit Cloud용 간단한 알고리즘 트레이딩 대시보드
-실시간 데이터 지원 (한국투자증권 API + yfinance 하이브리드)
 """
 import streamlit as st
 import pandas as pd
@@ -26,78 +25,7 @@ try:
 except ImportError:
     PYKRX_AVAILABLE = False
 
-# 한국투자증권 API 클라이언트
-class KISClient:
-    """한국투자증권 API 클라이언트"""
-    
-    def __init__(self):
-        self.app_key = self._get_config('app_key')
-        self.app_secret = self._get_config('app_secret')
-        self.base_url = self._get_config('base_url', 'https://openapi.koreainvestment.com:9443')
-        self.access_token = None
-        self.last_token_time = None
-        
-    def _get_config(self, key, default=None):
-        """환경 설정 로드 (로컬/클라우드 호환)"""
-        try:
-            # Streamlit Cloud의 경우
-            return st.secrets.get("kis", {}).get(key, default)
-        except:
-            # 로컬 개발의 경우
-            return os.getenv(f'KIS_{key.upper()}', default)
-    
-    def get_access_token(self):
-        """OAuth 토큰 발급"""
-        if not self.app_key or not self.app_secret:
-            raise Exception("KIS API 설정이 없습니다. 환경 변수 또는 secrets를 확인하세요.")
-            
-        url = f"{self.base_url}/oauth2/tokenP"
-        data = {
-            "grant_type": "client_credentials",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret
-        }
-        
-        try:
-            response = requests.post(url, json=data, timeout=10)
-            if response.status_code == 200:
-                result = response.json()
-                self.access_token = result['access_token']
-                self.last_token_time = time.time()
-                return self.access_token
-            else:
-                raise Exception(f"토큰 발급 실패: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"네트워크 오류: {str(e)}")
-    
-    def ensure_valid_token(self):
-        """토큰 유효성 검사 및 자동 갱신"""
-        # 토큰이 없거나 24시간 경과시 갱신
-        if (not self.access_token or 
-            not self.last_token_time or 
-            time.time() - self.last_token_time > 23 * 3600):
-            self.get_access_token()
-    
-    def get_headers(self, tr_id):
-        """API 요청 헤더 생성"""
-        self.ensure_valid_token()
-        return {
-            "authorization": f"Bearer {self.access_token}",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret,
-            "tr_id": tr_id,
-            "custtype": "P"
-        }
-    
-    @st.cache_data(ttl=60)  # 1분 캐시
-    def get_current_price(_self, symbol):
-        """현재가 조회"""
-        url = f"{_self.base_url}/uapi/domestic-stock/v1/quotations/inquire-price"
-        headers = _self.get_headers("FHKST01010100")
-        
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": symbol
+# Placeholder for removed API client
         }
         
         try:
@@ -168,11 +96,10 @@ st.set_page_config(
         'Report a bug': 'https://github.com/sang-su0916/smart-trading-system/issues',
         'About': """
         # Smart Trading Dashboard v4.0
-        실시간 한국 주식 데이터를 지원하는 AI 기반 종합 투자 분석 도구
+        한국 주식 데이터를 지원하는 AI 기반 종합 투자 분석 도구
         
         **주요 기능:**
-        - 🔴 실시간 데이터 (한국투자증권 API)
-        - 📋 실시간 호가창
+        - 📊 종합 기술적 분석
         - ⚖️ 공정가치 분석 
         - 🏭 업종 비교 분석
         - 🚦 매매 신호 시스템
@@ -530,24 +457,17 @@ def get_stock_data(symbol, period="1y"):
 
 # 실시간 데이터 표시 함수들
 def check_api_status():
-    """API 상태 체크"""
-    try:
-        kis = KISClient()
-        if kis.app_key and kis.app_secret:
-            kis.get_access_token()
-            st.success("✅ 한국투자증권 API 연결됨 (실시간 데이터)")
-        else:
-            st.warning("⚠️ 한국투자증권 API 설정이 없습니다 (지연 데이터 사용)")
-    except Exception as e:
-        st.warning("⚠️ 실시간 API 연결 실패: {} (지연 데이터 사용)".format(str(e)))
+    """API 상태 체크 (UI에서 숨김)"""
+    # API 상태는 내부적으로만 체크, UI에서는 표시하지 않음
+    pass
 
 def display_real_time_data(enhanced_data):
-    """실시간 데이터 표시"""
+    """데이터 표시"""
     kis_data = enhanced_data.get('kis_data', {})
     current_data = kis_data.get('current_data', {})
     
     if current_data:
-        st.info("🔴 실시간 데이터 ({})".format(enhanced_data.get('data_source', 'KIS API')))
+        st.info("📊 주가 데이터")
         
         # 실시간 가격 표시
         col1, col2, col3, col4 = st.columns(4)
@@ -579,8 +499,8 @@ def display_real_time_data(enhanced_data):
         st.markdown("---")
 
 def display_delayed_data(data, data_source):
-    """지연 데이터 표시"""
-    st.info("🟡 지연 데이터 ({}, ~20분 지연)".format(data_source))
+    """데이터 표시"""
+    st.info("📊 주가 데이터")
     
     if data.empty:
         st.warning("데이터가 없습니다.")
@@ -1227,7 +1147,7 @@ def create_candlestick_chart(data, symbol):
 def main():
     """메인 함수"""
     st.title("🚀 Smart Trading Dashboard v4.0")
-    st.caption("실시간 데이터 지원 (한국투자증권 API + Yahoo Finance 하이브리드)")
+    st.caption("한국 주식 종합 분석 플랫폼")
     
     # 사용법 간단 안내
     with st.container():
@@ -1235,7 +1155,7 @@ def main():
         with col_intro1:
             st.markdown("""
             **🎯 국내 전 종목 검색으로 공정가치 분석, 업종 비교, 매매 신호를 확인하세요!**  
-            🔍 **KOSPI + KOSDAQ 전 종목 지원** | 📊 5가지 기술적 지표 종합 분석 | 🏭 동종업계 비교 | 🚦 실시간 매매 신호
+            🔍 **KOSPI + KOSDAQ 전 종목 지원** | 📊 5가지 기술적 지표 종합 분석 | 🏭 동종업계 비교 | 🚦 매매 신호
             """)
         with col_intro2:
             if st.button("📚 사용법 보기", help="대시보드 사용법과 투자 가이드를 확인하세요"):
@@ -1282,40 +1202,8 @@ def main():
             index=0 if len(all_stocks_list) > 0 else None
         )
     
-    # 디버그 정보 표시 (더 안정화된 버전)
-    with st.sidebar.expander("🔧 디버그 정보", expanded=False):
-        try:
-            st.write("**시스템 상태:**")
-            st.write(f"• pykrx 사용 가능: {PYKRX_AVAILABLE}")
-            
-            all_stocks_debug = get_korean_stocks()
-            st.write(f"• 로드된 종목 수: {len(all_stocks_debug)}")
-            
-            if len(all_stocks_debug) > 0:
-                st.write("**샘플 종목 (처음 5개):**")
-                for i, (name, symbol) in enumerate(list(all_stocks_debug.items())[:5]):
-                    st.write(f"{i+1}. {name} → {symbol}")
-                
-                # 검색 테스트
-                st.write("**검색 테스트:**")
-                test_queries = ["삼성", "LG", "005930"]
-                for query in test_queries:
-                    test_results = search_stocks(query)
-                    st.write(f"'{query}' → {len(test_results)}개 결과")
-                    if len(test_results) > 0:
-                        st.write(f"  예: {test_results[0]}")
-            else:
-                st.error("❌ 종목 데이터 로드 실패!")
-                fallback = get_fallback_stocks()
-                st.write(f"• Fallback 종목 수: {len(fallback)}")
-                
-            # 현재 선택된 종목 표시
-            if selected_name:
-                st.write(f"**현재 선택:** {selected_name}")
-                
-        except Exception as e:
-            st.error(f"디버그 정보 표시 오류: {e}")
-            st.write("기본 검색 기능을 사용합니다.")
+    # 종목 현황 (디버그 정보 숨김처리)
+    # 내부적으로는 동작하지만 UI에서는 표시하지 않음
     
     # 전체 종목 리스트
     all_stocks = get_korean_stocks()
@@ -1813,7 +1701,7 @@ def main():
                 **📊 데이터 정확성 안내**
                 
                 - 현재 Yahoo Finance 데이터 사용 (15-20분 지연)
-                - 실시간 매매에는 실시간 데이터를 별도로 확인하세요
+                - 실제 매매 전에는 최신 데이터를 별도로 확인하세요
                 - 시스템 오류나 데이터 오류 가능성 항상 존재
                 """)
             
@@ -1822,7 +1710,7 @@ def main():
                 st.markdown("""
                 **🚀 예정된 업데이트**
                 
-                - 한국투자증권 API 연동으로 실시간 데이터 제공
+                - 더 많은 기술적 지표 추가
                 - 더 많은 기술적 지표와 분석 기능 추가
                 - 포트폴리오 관리 기능
                 - 백테스팅 및 성과 분석 도구
@@ -1880,9 +1768,9 @@ def main():
     with footer_col1:
         st.markdown("""
         **📊 데이터 소스**
-        - 한국투자증권 API (실시간)
-        - Yahoo Finance (15-20분 지연)
-        - 실시간 호가창 제공
+        - Yahoo Finance (해외 데이터)
+        - pykrx (국내 종목)
+        - 종합 분석 알고리즘
         """)
     
     with footer_col2:
