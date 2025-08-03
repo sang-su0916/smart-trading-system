@@ -3005,7 +3005,8 @@ def main():
                 """)
                 
     else:
-        st.error(f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요.")
+        error_message = f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요."
+        st.error(error_message)
     
     # 푸터
     st.markdown("---")
