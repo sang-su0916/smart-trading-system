@@ -12,15 +12,6 @@ from datetime import datetime, timedelta
 import warnings
 from streamlit_searchbox import st_searchbox
 
-# pykrx import with error handling for Streamlit Cloud
-try:
-    import pykrx.stock as stock
-    PYKRX_AVAILABLE = True
-except ImportError:
-    st.error("⚠️ pykrx 모듈을 불러올 수 없습니다. 일부 기능이 제한될 수 있습니다.")
-    PYKRX_AVAILABLE = False
-    stock = None
-
 # 경고 메시지 숨기기
 warnings.filterwarnings('ignore')
 
@@ -31,6 +22,15 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# pykrx import with error handling for Streamlit Cloud
+try:
+    import pykrx.stock as stock
+    PYKRX_AVAILABLE = True
+except ImportError:
+    PYKRX_AVAILABLE = False
+    stock = None
+    # 경고는 나중에 main()에서 표시
 
 # 캐시 함수들
 @st.cache_data(ttl=3600)  # 1시간 캐시 (종목 리스트는 자주 변하지 않음)
@@ -2215,6 +2215,10 @@ def create_candlestick_chart(data, symbol):
 
 def main():
     """메인 앱"""
+    
+    # pykrx 모듈 상태 확인 및 경고
+    if not PYKRX_AVAILABLE:
+        st.warning("⚠️ pykrx 모듈을 불러올 수 없습니다. 주요 한국 종목 10개로 제한됩니다.")
     
     # 헤더
     st.title("📊 Smart Trading Dashboard")
