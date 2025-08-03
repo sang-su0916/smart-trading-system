@@ -3,6 +3,4 @@ pandas
 numpy
 plotly
 yfinance
-requests
-python-dateutil
 streamlit-searchbox

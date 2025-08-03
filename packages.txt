@@ -1,2 +1,0 @@
-# Linux packages for Streamlit Cloud
-libgl1-mesa-glx
