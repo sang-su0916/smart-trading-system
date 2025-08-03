@@ -52,6 +52,95 @@ st.set_page_config(
     }
 )
 
+def get_us_stocks():
+    """미국 주요 종목 리스트"""
+    return {
+        # 빅테크 (FAANG + 테슬라 등)
+        "Apple Inc. (AAPL)": "AAPL",
+        "Microsoft Corp. (MSFT)": "MSFT", 
+        "Alphabet Inc. (GOOGL)": "GOOGL",
+        "Amazon.com Inc. (AMZN)": "AMZN",
+        "Meta Platforms Inc. (META)": "META",
+        "Tesla Inc. (TSLA)": "TSLA",
+        "NVIDIA Corp. (NVDA)": "NVDA",
+        "Netflix Inc. (NFLX)": "NFLX",
+        "Adobe Inc. (ADBE)": "ADBE",
+        "Salesforce Inc. (CRM)": "CRM",
+        
+        # 반도체/기술
+        "Intel Corp. (INTC)": "INTC",
+        "AMD Inc. (AMD)": "AMD",
+        "Qualcomm Inc. (QCOM)": "QCOM",
+        "Broadcom Inc. (AVGO)": "AVGO",
+        "Oracle Corp. (ORCL)": "ORCL",
+        "IBM Corp. (IBM)": "IBM",
+        "Cisco Systems (CSCO)": "CSCO",
+        
+        # 금융
+        "JPMorgan Chase (JPM)": "JPM",
+        "Bank of America (BAC)": "BAC",
+        "Wells Fargo (WFC)": "WFC",
+        "Goldman Sachs (GS)": "GS",
+        "Visa Inc. (V)": "V",
+        "Mastercard Inc. (MA)": "MA",
+        "American Express (AXP)": "AXP",
+        
+        # 소비재/서비스
+        "Coca-Cola Co. (KO)": "KO",
+        "PepsiCo Inc. (PEP)": "PEP",
+        "Nike Inc. (NKE)": "NKE",
+        "McDonald's Corp. (MCD)": "MCD",
+        "Starbucks Corp. (SBUX)": "SBUX",
+        "Walt Disney Co. (DIS)": "DIS",
+        "Home Depot (HD)": "HD",
+        "Walmart Inc. (WMT)": "WMT",
+        
+        # 헬스케어/제약
+        "Johnson & Johnson (JNJ)": "JNJ",
+        "Pfizer Inc. (PFE)": "PFE",
+        "Moderna Inc. (MRNA)": "MRNA",
+        "Abbott Labs (ABT)": "ABT",
+        "Merck & Co (MRK)": "MRK",
+        "UnitedHealth Group (UNH)": "UNH",
+        
+        # 통신
+        "AT&T Inc. (T)": "T",
+        "Verizon Communications (VZ)": "VZ",
+        "T-Mobile US (TMUS)": "TMUS",
+        
+        # 에너지
+        "ExxonMobil Corp. (XOM)": "XOM",
+        "Chevron Corp. (CVX)": "CVX",
+        "ConocoPhillips (COP)": "COP",
+        
+        # 산업/항공
+        "Boeing Co. (BA)": "BA",
+        "Caterpillar Inc. (CAT)": "CAT",
+        "General Electric (GE)": "GE",
+        "3M Co. (MMM)": "MMM",
+        
+        # 자동차
+        "Ford Motor Co. (F)": "F",
+        "General Motors (GM)": "GM",
+        
+        # ETF
+        "SPDR S&P 500 ETF (SPY)": "SPY",
+        "Invesco QQQ Trust (QQQ)": "QQQ",
+        "Vanguard Total Stock Market (VTI)": "VTI",
+        "iShares Russell 2000 (IWM)": "IWM",
+        "Vanguard S&P 500 ETF (VOO)": "VOO",
+        
+        # 기타 인기 종목
+        "Berkshire Hathaway (BRK-B)": "BRK-B",
+        "Coinbase Global (COIN)": "COIN",
+        "PayPal Holdings (PYPL)": "PYPL",
+        "Square Inc. (SQ)": "SQ",
+        "Zoom Video (ZM)": "ZM",
+        "Palantir Technologies (PLTR)": "PLTR",
+        "IonQ Inc. (IONQ)": "IONQ",
+        "Advanced Micro Devices (AMD)": "AMD"
+    }
+
 def get_fallback_stocks():
     """pykrx 사용 불가시 주요 종목 리스트 (확장된 버전)"""
     return {
@@ -202,8 +291,53 @@ def get_fallback_stocks():
     }
 
 @st.cache_data(ttl=3600)  # 1시간 캐시
+def get_all_stocks():
+    """한국 주식 + 미국 주식 목록 가져오기"""
+    all_stocks = {}
+    
+    # 1. 한국 주식 추가
+    if PYKRX_AVAILABLE:
+        try:
+            # KOSPI 전체 종목
+            try:
+                kospi_tickers = stock.get_market_ticker_list(market="KOSPI")
+                for ticker in kospi_tickers:
+                    try:
+                        name = stock.get_market_ticker_name(ticker)
+                        if name and len(name.strip()) > 0:
+                            all_stocks["{} ({})".format(name, ticker)] = "{}.KS".format(ticker)
+                    except:
+                        continue
+            except:
+                pass
+            
+            # KOSDAQ 전체 종목
+            try:
+                kosdaq_tickers = stock.get_market_ticker_list(market="KOSDAQ")
+                for ticker in kosdaq_tickers:
+                    try:
+                        name = stock.get_market_ticker_name(ticker)
+                        if name and len(name.strip()) > 0:
+                            all_stocks["{} ({})".format(name, ticker)] = "{}.KQ".format(ticker)
+                    except:
+                        continue
+            except:
+                pass
+        except:
+            # pykrx 실패 시 한국 주식 fallback 사용
+            all_stocks.update(get_fallback_stocks())
+    else:
+        # pykrx 없을 때 fallback 사용
+        all_stocks.update(get_fallback_stocks())
+    
+    # 2. 미국 주식 추가
+    all_stocks.update(get_us_stocks())
+    
+    return all_stocks
+
+@st.cache_data(ttl=3600)  # 1시간 캐시  
 def get_korean_stocks():
-    """한국 주식 목록 가져오기 (전체 종목)"""
+    """한국 주식 목록만 가져오기 (호환성을 위해 유지)"""
     if not PYKRX_AVAILABLE:
         return get_fallback_stocks()
     
@@ -246,23 +380,25 @@ def get_korean_stocks():
         return get_fallback_stocks()
 
 def search_stocks(search_term):
-    """종목 검색 함수 (안정화된 버전)"""
+    """종목 검색 함수 (한국 + 미국 주식 지원)"""
     # 빈 검색어 처리
     if not search_term or len(search_term.strip()) < 1:
-        # 빈 검색어일 때는 인기 종목 몇 개를 반환
+        # 빈 검색어일 때는 인기 종목 몇 개를 반환 (한국 + 미국)
         popular_stocks = [
-            "삼성전자 (005930)", "SK하이닉스 (000660)", "NAVER (035420)", 
-            "카카오 (035720)", "LG에너지솔루션 (373220)", "삼성바이오로직스 (207940)"
+            "삼성전자 (005930)", "SK하이닉스 (000660)", "NAVER (035420)",
+            "Apple Inc. (AAPL)", "Microsoft Corp. (MSFT)", "Tesla Inc. (TSLA)"
         ]
         return popular_stocks
     
     try:
         search_term = search_term.strip()
-        all_stocks = get_korean_stocks()
+        all_stocks = get_all_stocks()  # 한국 + 미국 주식 모두 가져오기
         
         # 종목 데이터가 없는 경우 기본 리스트에서 검색
         if not all_stocks or len(all_stocks) == 0:
-            all_stocks = get_fallback_stocks()
+            fallback_stocks = get_fallback_stocks()
+            fallback_stocks.update(get_us_stocks())
+            all_stocks = fallback_stocks
         
         results = []
         exact_matches = []
@@ -277,8 +413,8 @@ def search_stocks(search_term):
                 
                 # 정확한 매칭 (회사명이나 코드가 정확히 일치)
                 if search_lower in name_lower:
-                    # 종목코드 직접 검색
-                    if search_term in name and "(" in name:
+                    # 종목코드 직접 검색 (AAPL, TSLA 등)
+                    if search_term.upper() in name.upper() and "(" in name:
                         exact_matches.append(name)
                     # 회사명 시작 부분 매칭
                     elif name_lower.startswith(search_lower):
@@ -290,7 +426,7 @@ def search_stocks(search_term):
                 continue  # 개별 종목 처리 오류시 건너뛰기
         
         # 정확한 매칭을 먼저, 그 다음 부분 매칭
-        results = exact_matches[:10] + partial_matches[:10]
+        results = exact_matches[:15] + partial_matches[:15]
         
         # 결과가 없으면 유사한 종목 추천
         if len(results) == 0:
@@ -298,21 +434,21 @@ def search_stocks(search_term):
             for name in all_stocks.keys():
                 if any(char in name.lower() for char in search_lower):
                     results.append(name)
-                    if len(results) >= 5:
+                    if len(results) >= 10:
                         break
         
-        # 최대 20개까지 반환
-        return results[:20]
+        # 최대 30개까지 반환 (미국 주식 포함으로 늘림)
+        return results[:30]
         
     except Exception as e:
-        # 최종 fallback: 기본 종목들
+        # 최종 fallback: 기본 종목들 (한국 + 미국)
         basic_stocks = [
-            "삼성전자 (005930)", "SK하이닉스 (000660)", "NAVER (035420)", 
-            "카카오 (035720)", "LG에너지솔루션 (373220)"
+            "삼성전자 (005930)", "SK하이닉스 (000660)", "NAVER (035420)",
+            "Apple Inc. (AAPL)", "Microsoft Corp. (MSFT)", "Tesla Inc. (TSLA)"
         ]
         if search_term:
             return [stock for stock in basic_stocks if search_term.lower() in stock.lower()]
-        return basic_stocks[:3]
+        return basic_stocks[:6]
 
 # KIS API 통합 함수들
 def get_stock_data_with_kis(symbol):
@@ -1073,8 +1209,8 @@ def main():
         col_intro1, col_intro2 = st.columns([3, 1])
         with col_intro1:
             st.markdown("""
-            **🎯 국내 전 종목 검색으로 공정가치 분석, 업종 비교, 매매 신호를 확인하세요!**  
-            🔍 **KOSPI + KOSDAQ 전 종목 지원** | 📊 5가지 기술적 지표 종합 분석 | 🏭 동종업계 비교 | 🚦 매매 신호
+            **🎯 글로벌 주식 검색으로 공정가치 분석, 업종 비교, 매매 신호를 확인하세요!**  
+            🌐 **한국 + 미국 주식 지원** | 📊 5가지 기술적 지표 종합 분석 | 🏭 동종업계 비교 | 🚦 매매 신호
             """)
         with col_intro2:
             if st.button("📚 사용법 보기", help="대시보드 사용법과 투자 가이드를 확인하세요"):
@@ -1084,29 +1220,31 @@ def main():
     
     # 사이드바
     st.sidebar.header("🔍 종목 선택")
-    st.sidebar.markdown("🚀 **전체 종목 검색 가능** (KOSPI + KOSDAQ)")
+    st.sidebar.markdown("🌐 **글로벌 종목 검색** (한국 + 미국 주식)")
     
     # 검색 상태 표시
     with st.sidebar.container():
-        stocks_count = len(get_korean_stocks())
-        if stocks_count > 100:
-            st.sidebar.success(f"✅ {stocks_count:,}개 종목 로드 완료")
-        elif stocks_count > 50:
-            st.sidebar.info(f"ℹ️ {stocks_count}개 주요 종목 사용 중")
-        else:
-            st.sidebar.warning(f"⚠️ 기본 {stocks_count}개 종목만 사용 가능")
+        all_stocks_count = len(get_all_stocks())
+        korean_stocks_count = len(get_korean_stocks())
+        us_stocks_count = len(get_us_stocks())
+        
+        st.sidebar.success(f"✅ 총 {all_stocks_count:,}개 종목 지원")
+        st.sidebar.markdown(f"• 🇰🇷 한국: {korean_stocks_count:,}개")
+        st.sidebar.markdown(f"• 🇺🇸 미국: {us_stocks_count:,}개")
     
     st.sidebar.markdown("💡 **검색 방법:**")
-    st.sidebar.markdown("- 회사명: 삼성전자, LG전자, 카카오")
+    st.sidebar.markdown("**🇰🇷 한국 주식:**")
+    st.sidebar.markdown("- 회사명: 삼성전자, NAVER, 카카오")
     st.sidebar.markdown("- 종목코드: 005930, 035420, 035720")
-    st.sidebar.markdown("- 영문명: NAVER, SK Hynix")
-    st.sidebar.markdown("- 부분검색: 삼성, LG, 현대")
+    st.sidebar.markdown("**🇺🇸 미국 주식:**")
+    st.sidebar.markdown("- 회사명: Apple, Tesla, Microsoft")
+    st.sidebar.markdown("- 종목코드: AAPL, TSLA, MSFT")
     
     # 종목 검색
     try:
         selected_name = st_searchbox(
             search_function=search_stocks,
-            placeholder="🔍 회사명 또는 종목코드로 검색 (예: 삼성전자, 005930)",
+            placeholder="🔍 한국/미국 주식 검색 (예: 삼성전자, AAPL, Tesla)",
             key="stock_searchbox",
             clear_on_submit=False,
             rerun_on_update=True
@@ -1124,8 +1262,8 @@ def main():
     # 종목 현황 (디버그 정보 숨김처리)
     # 내부적으로는 동작하지만 UI에서는 표시하지 않음
     
-    # 전체 종목 리스트
-    all_stocks = get_korean_stocks()
+    # 전체 종목 리스트 (한국 + 미국)
+    all_stocks = get_all_stocks()
     
     # 선택된 종목 처리
     if selected_name and selected_name in all_stocks:
