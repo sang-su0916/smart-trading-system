@@ -8,10 +8,18 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 import yfinance as yf
-import pykrx.stock as stock
 from datetime import datetime, timedelta
 import warnings
 from streamlit_searchbox import st_searchbox
+
+# pykrx import with error handling for Streamlit Cloud
+try:
+    import pykrx.stock as stock
+    PYKRX_AVAILABLE = True
+except ImportError:
+    st.error("⚠️ pykrx 모듈을 불러올 수 없습니다. 일부 기능이 제한될 수 있습니다.")
+    PYKRX_AVAILABLE = False
+    stock = None
 
 # 경고 메시지 숨기기
 warnings.filterwarnings('ignore')
@@ -28,6 +36,21 @@ st.set_page_config(
 @st.cache_data(ttl=3600)  # 1시간 캐시 (종목 리스트는 자주 변하지 않음)
 def get_all_korean_stocks():
     """한국거래소 전체 종목 리스트 가져오기"""
+    if not PYKRX_AVAILABLE or stock is None:
+        # pykrx가 없으면 기본 종목들 반환
+        return {
+            "삼성전자 (005930)": "005930.KS",
+            "SK하이닉스 (000660)": "000660.KS", 
+            "NAVER (035420)": "035420.KS",
+            "카카오 (035720)": "035720.KS",
+            "LG에너지솔루션 (373220)": "373220.KS",
+            "현대차 (005380)": "005380.KS",
+            "기아 (000270)": "000270.KS",
+            "삼성바이오로직스 (207940)": "207940.KS",
+            "POSCO홀딩스 (005490)": "005490.KS",
+            "LG화학 (051910)": "051910.KS"
+        }
+    
     try:
         today = datetime.now().strftime('%Y%m%d')
         
