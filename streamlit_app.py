@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
 """
-Streamlit Cloud용 간단한 알고리즘 트레이딩 대시보드
+Smart Trading Dashboard v4.0
+AI 기반 종합 투자 분석 도구
 """
 import streamlit as st
 import pandas as pd
