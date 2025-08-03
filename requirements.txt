@@ -4,3 +4,4 @@ numpy
 plotly
 yfinance
 streamlit-searchbox
+requests

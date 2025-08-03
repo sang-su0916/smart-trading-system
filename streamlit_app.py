@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Streamlit Cloud용 간단한 알고리즘 트레이딩 대시보드
-데이터베이스 없이 실시간 데이터로 작동
+실시간 데이터 지원 (한국투자증권 API + yfinance 하이브리드)
 """
 import streamlit as st
 import pandas as pd
@@ -11,6 +11,11 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import yfinance as yf
 from streamlit_searchbox import st_searchbox
+import requests
+import json
+import os
+import time
+from functools import wraps
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -20,6 +25,137 @@ try:
     PYKRX_AVAILABLE = True
 except ImportError:
     PYKRX_AVAILABLE = False
+
+# 한국투자증권 API 클라이언트
+class KISClient:
+    """한국투자증권 API 클라이언트"""
+    
+    def __init__(self):
+        self.app_key = self._get_config('app_key')
+        self.app_secret = self._get_config('app_secret')
+        self.base_url = self._get_config('base_url', 'https://openapi.koreainvestment.com:9443')
+        self.access_token = None
+        self.last_token_time = None
+        
+    def _get_config(self, key, default=None):
+        """환경 설정 로드 (로컬/클라우드 호환)"""
+        try:
+            # Streamlit Cloud의 경우
+            return st.secrets.get("kis", {}).get(key, default)
+        except:
+            # 로컬 개발의 경우
+            return os.getenv(f'KIS_{key.upper()}', default)
+    
+    def get_access_token(self):
+        """OAuth 토큰 발급"""
+        if not self.app_key or not self.app_secret:
+            raise Exception("KIS API 설정이 없습니다. 환경 변수 또는 secrets를 확인하세요.")
+            
+        url = f"{self.base_url}/oauth2/tokenP"
+        data = {
+            "grant_type": "client_credentials",
+            "appkey": self.app_key,
+            "appsecret": self.app_secret
+        }
+        
+        try:
+            response = requests.post(url, json=data, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                self.access_token = result['access_token']
+                self.last_token_time = time.time()
+                return self.access_token
+            else:
+                raise Exception(f"토큰 발급 실패: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"네트워크 오류: {str(e)}")
+    
+    def ensure_valid_token(self):
+        """토큰 유효성 검사 및 자동 갱신"""
+        # 토큰이 없거나 24시간 경과시 갱신
+        if (not self.access_token or 
+            not self.last_token_time or 
+            time.time() - self.last_token_time > 23 * 3600):
+            self.get_access_token()
+    
+    def get_headers(self, tr_id):
+        """API 요청 헤더 생성"""
+        self.ensure_valid_token()
+        return {
+            "authorization": f"Bearer {self.access_token}",
+            "appkey": self.app_key,
+            "appsecret": self.app_secret,
+            "tr_id": tr_id,
+            "custtype": "P"
+        }
+    
+    @st.cache_data(ttl=60)  # 1분 캐시
+    def get_current_price(_self, symbol):
+        """현재가 조회"""
+        url = f"{_self.base_url}/uapi/domestic-stock/v1/quotations/inquire-price"
+        headers = _self.get_headers("FHKST01010100")
+        
+        params = {
+            "fid_cond_mrkt_div_code": "J",
+            "fid_input_iscd": symbol
+        }
+        
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                output = data['output']
+                return {
+                    'symbol': symbol,
+                    'current_price': int(output['stck_prpr']),
+                    'change': int(output['prdy_vrss']),
+                    'change_rate': float(output['prdy_ctrt']),
+                    'volume': int(output['acml_vol']),
+                    'high': int(output['stck_hgpr']),
+                    'low': int(output['stck_lwpr']),
+                    'open': int(output['stck_oprc']),
+                    'market_cap': int(output.get('mrkv', 0))
+                }
+            else:
+                raise Exception(f"API 오류: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"네트워크 오류: {str(e)}")
+    
+    @st.cache_data(ttl=30)  # 30초 캐시
+    def get_orderbook(_self, symbol):
+        """실시간 호가창"""
+        url = f"{_self.base_url}/uapi/domestic-stock/v1/quotations/inquire-asking-price-exp-ccn"
+        headers = _self.get_headers("FHKST01010200")
+        
+        params = {
+            "fid_cond_mrkt_div_code": "J",
+            "fid_input_iscd": symbol
+        }
+        
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                output = data['output1']
+                
+                # 매도호가 (10단계)
+                ask_prices = [int(output[f'askp{i}']) for i in range(1, 11) if output[f'askp{i}']]
+                ask_volumes = [int(output[f'askp_rsqn{i}']) for i in range(1, 11) if output[f'askp_rsqn{i}']]
+                
+                # 매수호가 (10단계)
+                bid_prices = [int(output[f'bidp{i}']) for i in range(1, 11) if output[f'bidp{i}']]
+                bid_volumes = [int(output[f'bidp_rsqn{i}']) for i in range(1, 11) if output[f'bidp_rsqn{i}']]
+                
+                return {
+                    'ask_prices': ask_prices,
+                    'ask_volumes': ask_volumes,
+                    'bid_prices': bid_prices,
+                    'bid_volumes': bid_volumes
+                }
+            else:
+                raise Exception(f"API 오류: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"네트워크 오류: {str(e)}")
 
 # 페이지 설정
 st.set_page_config(
@@ -78,8 +214,40 @@ def search_stocks(search_term):
                 
     return results
 
-def get_stock_data(symbol, period="1y"):
-    """주가 데이터 가져오기"""
+# KIS API 통합 함수들
+def get_stock_data_with_kis(symbol):
+    """KIS API를 활용한 실시간 주가 데이터 조회"""
+    try:
+        # 종목코드 변환 (.KS 제거)
+        kis_symbol = symbol.replace('.KS', '') if symbol.endswith('.KS') else symbol
+        
+        kis = KISClient()
+        
+        # 실시간 현재가 조회
+        current_data = kis.get_current_price(kis_symbol)
+        
+        # 호가창 데이터
+        try:
+            orderbook = kis.get_orderbook(kis_symbol)
+        except:
+            orderbook = None
+        
+        return {
+            'current_data': current_data,
+            'orderbook': orderbook,
+            'data_source': 'KIS API (실시간)',
+            'success': True
+        }
+        
+    except Exception as e:
+        return {
+            'error': str(e),
+            'data_source': 'KIS API 실패',
+            'success': False
+        }
+
+def get_stock_data_yfinance(symbol, period="1y"):
+    """기존 yfinance를 사용한 데이터 조회"""
     try:
         ticker = yf.Ticker(symbol)
         data = ticker.history(period=period)
@@ -88,6 +256,192 @@ def get_stock_data(symbol, period="1y"):
         return data
     except Exception:
         return pd.DataFrame()
+
+def get_stock_data_enhanced(symbol, period="1y"):
+    """향상된 주가 데이터 조회 (KIS + yfinance 하이브리드)"""
+    
+    # 1. KIS API로 실시간 데이터 시도
+    kis_result = get_stock_data_with_kis(symbol)
+    
+    # 2. yfinance로 차트 데이터 조회
+    chart_data = get_stock_data_yfinance(symbol, period)
+    
+    if kis_result['success'] and not chart_data.empty:
+        # KIS 실시간 + yfinance 차트 데이터 결합
+        return {
+            'chart_data': chart_data,
+            'kis_data': kis_result,
+            'data_source': 'KIS API + yfinance (하이브리드)',
+            'has_realtime': True
+        }
+    elif not chart_data.empty:
+        # yfinance만 사용
+        return {
+            'chart_data': chart_data,
+            'kis_data': None,
+            'data_source': 'yfinance (지연 데이터)',
+            'has_realtime': False
+        }
+    else:
+        # 모든 데이터 소스 실패
+        return {
+            'chart_data': pd.DataFrame(),
+            'kis_data': None,
+            'data_source': '데이터 없음',
+            'has_realtime': False,
+            'error': 'All data sources failed'
+        }
+
+def get_stock_data(symbol, period="1y"):
+    """주가 데이터 가져오기 (호환성을 위한 래퍼)"""
+    result = get_stock_data_enhanced(symbol, period)
+    return result.get('chart_data', pd.DataFrame())
+
+# 실시간 데이터 표시 함수들
+def check_api_status():
+    """API 상태 체크"""
+    try:
+        kis = KISClient()
+        if kis.app_key and kis.app_secret:
+            kis.get_access_token()
+            st.success("✅ 한국투자증권 API 연결됨 (실시간 데이터)")
+        else:
+            st.warning("⚠️ 한국투자증권 API 설정이 없습니다 (지연 데이터 사용)")
+    except Exception as e:
+        st.warning("⚠️ 실시간 API 연결 실패: {} (지연 데이터 사용)".format(str(e)))
+
+def display_real_time_data(enhanced_data):
+    """실시간 데이터 표시"""
+    kis_data = enhanced_data.get('kis_data', {})
+    current_data = kis_data.get('current_data', {})
+    
+    if current_data:
+        st.info("🔴 실시간 데이터 ({})".format(enhanced_data.get('data_source', 'KIS API')))
+        
+        # 실시간 가격 표시
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "현재가", 
+                "{:,}원".format(current_data['current_price']),
+                "{:+,}원 ({:+.2f}%)".format(
+                    current_data['change'], 
+                    current_data['change_rate']
+                )
+            )
+        
+        with col2:
+            st.metric("거래량", "{:,}주".format(current_data['volume']))
+            
+        with col3:
+            st.metric("고가", "{:,}원".format(current_data['high']))
+            
+        with col4:
+            st.metric("저가", "{:,}원".format(current_data['low']))
+        
+        # 호가창 표시
+        orderbook = kis_data.get('orderbook')
+        if orderbook:
+            display_orderbook(orderbook)
+        
+        st.markdown("---")
+
+def display_delayed_data(data, data_source):
+    """지연 데이터 표시"""
+    st.info("🟡 지연 데이터 ({}, ~20분 지연)".format(data_source))
+    
+    # 기존 방식으로 표시
+    latest = data.iloc[-1]
+    prev_close = data.iloc[-2]['Close'] if len(data) > 1 else latest['Close']
+    change = latest['Close'] - prev_close
+    change_pct = (change / prev_close) * 100
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("현재가", "{:,.0f}원".format(latest['Close']), "{:+.0f}원".format(change))
+    
+    with col2:
+        st.metric("변동율", "{:+.2f}%".format(change_pct))
+    
+    with col3:
+        st.metric("거래량", "{:,.0f}주".format(latest['Volume']))
+    
+    with col4:
+        rsi_value = latest['RSI'] if 'RSI' in latest and not pd.isna(latest['RSI']) else 0
+        st.metric("RSI", "{:.1f}".format(rsi_value))
+    
+    st.markdown("---")
+
+def display_orderbook(orderbook):
+    """호가창 표시"""
+    st.subheader("📋 실시간 호가창")
+    
+    # 데이터 길이 확인
+    ask_prices = orderbook.get('ask_prices', [])
+    ask_volumes = orderbook.get('ask_volumes', [])
+    bid_prices = orderbook.get('bid_prices', [])
+    bid_volumes = orderbook.get('bid_volumes', [])
+    
+    if not ask_prices or not bid_prices:
+        st.warning("호가 데이터가 없습니다.")
+        return
+    
+    # 최대 10단계까지 표시
+    max_levels = min(10, len(ask_prices), len(bid_prices), len(ask_volumes), len(bid_volumes))
+    
+    if max_levels > 0:
+        # 호가창 데이터프레임 생성
+        orderbook_data = []
+        
+        # 매도호가 (높은 가격부터)
+        for i in range(max_levels-1, -1, -1):
+            if i < len(ask_prices):
+                orderbook_data.append({
+                    '구분': '매도{}'.format(i+1),
+                    '잔량': '{:,}'.format(ask_volumes[i]) if i < len(ask_volumes) else '-',
+                    '호가': '{:,}'.format(ask_prices[i]),
+                    '타입': 'ask'
+                })
+        
+        # 현재가 구분선
+        orderbook_data.append({
+            '구분': '현재가',
+            '잔량': '-',
+            '호가': '현재가',
+            '타입': 'current'
+        })
+        
+        # 매수호가
+        for i in range(min(max_levels, len(bid_prices))):
+            orderbook_data.append({
+                '구분': '매수{}'.format(i+1),
+                '잔량': '{:,}'.format(bid_volumes[i]) if i < len(bid_volumes) else '-',
+                '호가': '{:,}'.format(bid_prices[i]),
+                '타입': 'bid'
+            })
+        
+        orderbook_df = pd.DataFrame(orderbook_data)
+        
+        # 스타일링 적용
+        def style_orderbook_row(row):
+            if row['타입'] == 'ask':
+                return ['background-color: #ffebee'] * len(row)
+            elif row['타입'] == 'bid':
+                return ['background-color: #e8f5e8'] * len(row)
+            elif row['타입'] == 'current':
+                return ['background-color: #fff3e0; font-weight: bold'] * len(row)
+            return [''] * len(row)
+        
+        styled_df = orderbook_df.drop('타입', axis=1).style.apply(style_orderbook_row, axis=1)
+        
+        # 호가창 표시
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+    else:
+        st.warning("호가 데이터를 표시할 수 없습니다.")
+    
+    st.markdown("---")
 
 def calculate_technical_indicators(data):
     """기술적 지표 계산"""
@@ -637,7 +991,8 @@ def create_candlestick_chart(data, symbol):
 
 def main():
     """메인 함수"""
-    st.title("📈 Smart Trading Dashboard")
+    st.title("🚀 Smart Trading Dashboard v4.0")
+    st.caption("실시간 데이터 지원 (한국투자증권 API + Yahoo Finance 하이브리드)")
     
     # 사용법 간단 안내
     with st.container():
@@ -689,34 +1044,23 @@ def main():
     # 메인 컨텐츠
     st.subheader("📈 {} ({})".format(selected_name, selected_symbol))
     
-    # 데이터 로드
+    # API 상태 확인
+    check_api_status()
+    
+    # 향상된 데이터 로드
     with st.spinner("데이터 로딩 중..."):
-        data = get_stock_data(selected_symbol, period)
+        enhanced_data = get_stock_data_enhanced(selected_symbol, period)
+        data = enhanced_data.get('chart_data', pd.DataFrame())
         
     if not data.empty:
         # 기술적 지표 계산
         data = calculate_technical_indicators(data)
         
-        # 현재 가격 정보
-        latest = data.iloc[-1]
-        prev_close = data.iloc[-2]['Close'] if len(data) > 1 else latest['Close']
-        change = latest['Close'] - prev_close
-        change_pct = (change / prev_close) * 100
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("현재가", "{:,.0f}원".format(latest['Close']), "{:+.0f}원".format(change))
-        
-        with col2:
-            st.metric("변동율", "{:+.2f}%".format(change_pct))
-        
-        with col3:
-            st.metric("거래량", "{:,.0f}주".format(latest['Volume']))
-        
-        with col4:
-            rsi_value = latest['RSI'] if 'RSI' in latest and not pd.isna(latest['RSI']) else 0
-            st.metric("RSI", "{:.1f}".format(rsi_value))
+        # 실시간 데이터 표시
+        if enhanced_data.get('has_realtime'):
+            display_real_time_data(enhanced_data)
+        else:
+            display_delayed_data(data, enhanced_data.get('data_source', 'yfinance'))
         
         st.markdown("---")
         
@@ -1345,9 +1689,9 @@ def main():
     with footer_col1:
         st.markdown("""
         **📊 데이터 소스**
+        - 한국투자증권 API (실시간)
         - Yahoo Finance (15-20분 지연)
-        - 한국 주요 종목 포함
-        - 실시간 API 연동 예정
+        - 실시간 호가창 제공
         """)
     
     with footer_col2:
@@ -1369,7 +1713,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #888; font-size: 0.9em;'>"
-        "💼 Smart Trading Dashboard v3.0 | "
+        "💼 Smart Trading Dashboard v4.0 | "
         "🤖 AI 기반 종합 투자 분석 도구 | "
         "📈 여러분의 현명한 투자를 응원합니다"
         "</div>", 
