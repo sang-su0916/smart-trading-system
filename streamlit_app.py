@@ -1010,6 +1010,191 @@ def analyze_industry_comparison(symbol, current_data):
         'comparison_analysis': comparison_analysis
     }
 
+def backtest_trading_signals(data, symbol, lookback_days=120):
+    """백테스팅을 통한 매매 신호 성과 분석"""
+    if data.empty or len(data) < lookback_days:
+        return {
+            'backtesting_available': False,
+            'message': '백테스팅을 위한 충분한 데이터 없음'
+        }
+    
+    # 백테스팅용 데이터 (최근 120일 제외하고 과거 데이터 사용)
+    backtest_data = data.iloc[:-30]  # 최근 30일은 제외하고 백테스팅
+    
+    if len(backtest_data) < 90:
+        return {
+            'backtesting_available': False,
+            'message': '백테스팅 기간이 너무 짧음'
+        }
+    
+    trades = []
+    
+    # 과거 데이터로 매매 신호 시뮬레이션
+    for i in range(60, len(backtest_data) - 10):  # 60일 이후부터, 마지막 10일 전까지
+        # 현재 시점까지의 데이터로 신호 생성
+        current_data = backtest_data.iloc[:i+1].copy()
+        current_data = calculate_technical_indicators(current_data)
+        
+        if len(current_data) < 60:
+            continue
+            
+        current_price = current_data.iloc[-1]['Close']
+        signals = analyze_trading_signals(current_data, current_price)
+        
+        if not signals.get('signals_available'):
+            continue
+            
+        signal_strength = signals.get('signal_strength', 0)
+        
+        # 매수/매도 신호가 충분히 강할 때만 거래
+        if abs(signal_strength) >= 25:  # 임계값 25 이상
+            trade_type = 'BUY' if signal_strength > 0 else 'SELL'
+            entry_price = current_price
+            target_price = signals.get('target_price_1', current_price)
+            stop_loss = signals.get('stop_loss', current_price)
+            
+            # 향후 10일간 결과 확인
+            future_data = backtest_data.iloc[i+1:i+11]
+            if len(future_data) == 0:
+                continue
+                
+            trade_result = simulate_trade(
+                trade_type, entry_price, target_price, stop_loss, 
+                future_data, symbol
+            )
+            
+            if trade_result:
+                trade_result['entry_date'] = current_data.index[-1]
+                trade_result['signal_strength'] = signal_strength
+                trades.append(trade_result)
+    
+    # 백테스팅 결과 분석
+    if len(trades) == 0:
+        return {
+            'backtesting_available': False,
+            'message': '분석 기간 동안 거래 신호 없음'
+        }
+    
+    return analyze_backtest_results(trades, symbol)
+
+def simulate_trade(trade_type, entry_price, target_price, stop_loss, future_data, symbol):
+    """개별 거래 시뮬레이션"""
+    if future_data.empty:
+        return None
+    
+    for i, (date, row) in enumerate(future_data.iterrows()):
+        high_price = row['High']
+        low_price = row['Low']
+        close_price = row['Close']
+        
+        if trade_type == 'BUY':
+            # 매수의 경우: 목표가 달성하면 수익, 손절가 터치하면 손실
+            if high_price >= target_price:
+                return {
+                    'trade_type': trade_type,
+                    'entry_price': entry_price,
+                    'exit_price': target_price,
+                    'exit_date': date,
+                    'days_held': i + 1,
+                    'return_pct': ((target_price - entry_price) / entry_price) * 100,
+                    'result': 'WIN'
+                }
+            elif low_price <= stop_loss:
+                return {
+                    'trade_type': trade_type,
+                    'entry_price': entry_price,
+                    'exit_price': stop_loss,
+                    'exit_date': date,
+                    'days_held': i + 1,
+                    'return_pct': ((stop_loss - entry_price) / entry_price) * 100,
+                    'result': 'LOSS'
+                }
+        else:  # SELL
+            # 매도의 경우: 목표가(하락) 달성하면 수익, 손절가(상승) 터치하면 손실
+            if low_price <= target_price:
+                return {
+                    'trade_type': trade_type,
+                    'entry_price': entry_price,
+                    'exit_price': target_price,
+                    'exit_date': date,
+                    'days_held': i + 1,
+                    'return_pct': ((entry_price - target_price) / entry_price) * 100,
+                    'result': 'WIN'
+                }
+            elif high_price >= stop_loss:
+                return {
+                    'trade_type': trade_type,
+                    'entry_price': entry_price,
+                    'exit_price': stop_loss,
+                    'exit_date': date,
+                    'days_held': i + 1,
+                    'return_pct': ((entry_price - stop_loss) / entry_price) * 100,
+                    'result': 'LOSS'
+                }
+    
+    # 10일 후에도 목표가/손절가에 도달하지 않으면 종가로 청산
+    final_price = future_data.iloc[-1]['Close']
+    if trade_type == 'BUY':
+        return_pct = ((final_price - entry_price) / entry_price) * 100
+    else:
+        return_pct = ((entry_price - final_price) / entry_price) * 100
+    
+    return {
+        'trade_type': trade_type,
+        'entry_price': entry_price,
+        'exit_price': final_price,
+        'exit_date': future_data.index[-1],
+        'days_held': len(future_data),
+        'return_pct': return_pct,
+        'result': 'WIN' if return_pct > 0 else 'LOSS'
+    }
+
+def analyze_backtest_results(trades, symbol):
+    """백테스팅 결과 분석"""
+    total_trades = len(trades)
+    winning_trades = [t for t in trades if t['result'] == 'WIN']
+    losing_trades = [t for t in trades if t['result'] == 'LOSS']
+    
+    win_rate = (len(winning_trades) / total_trades) * 100
+    
+    total_return = sum(t['return_pct'] for t in trades)
+    avg_return = total_return / total_trades
+    
+    max_gain = max(t['return_pct'] for t in trades)
+    max_loss = min(t['return_pct'] for t in trades)
+    
+    avg_win = sum(t['return_pct'] for t in winning_trades) / len(winning_trades) if winning_trades else 0
+    avg_loss = sum(t['return_pct'] for t in losing_trades) / len(losing_trades) if losing_trades else 0
+    
+    avg_holding_days = sum(t['days_held'] for t in trades) / total_trades
+    
+    # 신뢰도 계산 (승률 기반)
+    if win_rate >= 70:
+        confidence = min(95, win_rate + 10)
+    elif win_rate >= 60:
+        confidence = min(85, win_rate + 5)
+    elif win_rate >= 50:
+        confidence = win_rate
+    else:
+        confidence = max(30, win_rate - 10)
+    
+    return {
+        'backtesting_available': True,
+        'total_trades': total_trades,
+        'win_rate': win_rate,
+        'avg_return': avg_return,
+        'total_return': total_return,
+        'max_gain': max_gain,
+        'max_loss': max_loss,
+        'avg_win': avg_win,
+        'avg_loss': avg_loss,
+        'avg_holding_days': avg_holding_days,
+        'confidence': confidence,
+        'winning_trades': len(winning_trades),
+        'losing_trades': len(losing_trades),
+        'trades': trades[:10]  # 최근 10개 거래만 저장
+    }
+
 def analyze_trading_signals(data, current_price):
     """매매 신호 분석"""
     if data.empty or len(data) < 60:
@@ -1625,6 +1810,99 @@ def main():
         
         with tab4:
             st.subheader("🚦 매매 신호 분석")
+            
+            # 백테스팅 결과 먼저 표시
+            with st.expander("📊 백테스팅 성과 분석", expanded=True):
+                with st.spinner("백테스팅 분석 중..."):
+                    backtest_results = backtest_trading_signals(data, selected_symbol)
+                
+                if backtest_results['backtesting_available']:
+                    # 백테스팅 주요 지표 표시
+                    col_bt1, col_bt2, col_bt3, col_bt4 = st.columns(4)
+                    
+                    with col_bt1:
+                        win_rate = backtest_results['win_rate']
+                        if win_rate >= 70:
+                            rate_color = "🟢"
+                        elif win_rate >= 60:
+                            rate_color = "🟡"
+                        elif win_rate >= 50:
+                            rate_color = "🟠"
+                        else:
+                            rate_color = "🔴"
+                        
+                        st.metric(
+                            "실제 승률",
+                            f"{rate_color} {win_rate:.1f}%",
+                            f"{backtest_results['winning_trades']}승 {backtest_results['losing_trades']}패"
+                        )
+                    
+                    with col_bt2:
+                        avg_return = backtest_results['avg_return']
+                        total_trades = backtest_results['total_trades']
+                        st.metric(
+                            "평균 수익률",
+                            f"{avg_return:+.2f}%",
+                            f"총 {total_trades}건 거래"
+                        )
+                    
+                    with col_bt3:
+                        max_gain = backtest_results['max_gain']
+                        max_loss = backtest_results['max_loss']
+                        st.metric(
+                            "최대 수익/손실",
+                            f"+{max_gain:.1f}%",
+                            f"{max_loss:.1f}%"
+                        )
+                    
+                    with col_bt4:
+                        confidence = backtest_results['confidence']
+                        holding_days = backtest_results['avg_holding_days']
+                        st.metric(
+                            "실제 신뢰도",
+                            f"{confidence:.1f}%",
+                            f"평균 {holding_days:.1f}일 보유"
+                        )
+                    
+                    # 상세 백테스팅 결과
+                    st.markdown("**📈 백테스팅 상세 결과:**")
+                    col_detail1, col_detail2 = st.columns(2)
+                    
+                    with col_detail1:
+                        st.markdown(f"• **평균 수익 거래**: +{backtest_results['avg_win']:.2f}%")
+                        st.markdown(f"• **평균 손실 거래**: {backtest_results['avg_loss']:.2f}%")
+                        st.markdown(f"• **총 수익률**: {backtest_results['total_return']:+.2f}%")
+                    
+                    with col_detail2:
+                        # 거래 품질 평가
+                        if win_rate >= 70:
+                            quality = "🟢 매우 우수"
+                        elif win_rate >= 60:
+                            quality = "🟡 우수"
+                        elif win_rate >= 50:
+                            quality = "🟠 보통"
+                        else:
+                            quality = "🔴 주의 필요"
+                        
+                        st.markdown(f"• **신호 품질**: {quality}")
+                        st.markdown(f"• **분석 기간**: 과거 {len(data)}일")
+                        
+                        # 신뢰도 기반 추천
+                        if confidence >= 70:
+                            st.markdown("• **추천**: 🟢 신호 신뢰 가능")
+                        elif confidence >= 60:
+                            st.markdown("• **추천**: 🟡 조건부 신뢰")
+                        else:
+                            st.markdown("• **추천**: 🔴 추가 검증 필요")
+                
+                else:
+                    st.info(f"📊 백테스팅 분석: {backtest_results['message']}")
+                    st.markdown("**참고:** 충분한 데이터가 있는 종목에서 백테스팅 결과를 확인할 수 있습니다.")
+            
+            st.markdown("---")
+            
+            # 현재 매매 신호 표시
+            st.subheader("🎯 현재 매매 신호")
             trading_signals = analyze_trading_signals(data, current_price)
             
             if trading_signals['signals_available']:
@@ -1646,10 +1924,18 @@ def main():
                     )
                 
                 with col_signal3:
+                    # 백테스팅 결과가 있으면 실제 신뢰도 사용
+                    if 'backtest_results' in locals() and backtest_results.get('backtesting_available'):
+                        actual_confidence = backtest_results['confidence']
+                        confidence_source = "실제 데이터"
+                    else:
+                        actual_confidence = trading_signals['confidence'] 
+                        confidence_source = "이론적 계산"
+                    
                     st.metric(
                         "신뢰도",
-                        "{:.1f}%".format(trading_signals['confidence']),
-                        help="신호의 신뢰도 (60% 이상 권장)"
+                        "{:.1f}%".format(actual_confidence),
+                        help=f"신호의 신뢰도 ({confidence_source} 기반)"
                     )
                 
                 with col_signal4:
