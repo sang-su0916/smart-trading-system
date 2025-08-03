@@ -2488,15 +2488,18 @@ def main():
                     
                     # RSI 분석
                     rsi_data = fair_value_analysis['analysis']['rsi']
-                    st.markdown(f"**RSI ({rsi_data['value']:.1f}):** {rsi_data['status']}")
+                    rsi_text = "**RSI ({:.1f}):** {}".format(rsi_data['value'], rsi_data['status'])
+                    st.markdown(rsi_text)
                     
                     # 볼린저 밴드 분석
                     bb_data = fair_value_analysis['analysis']['bollinger_bands']
-                    st.markdown(f"**볼린저밴드:** {bb_data['status']} (위치: {bb_data['position']:.1f}%)")
+                    bb_text = "**볼린저밴드:** {} (위치: {:.1f}%)".format(bb_data['status'], bb_data['position'])
+                    st.markdown(bb_text)
                     
                     # 스토캐스틱 분석
                     stoch_data = fair_value_analysis['analysis']['stochastic']
-                    st.markdown(f"**스토캐스틱 ({stoch_data['k_value']:.1f}):** {stoch_data['status']}")
+                    stoch_text = "**스토캐스틱 ({:.1f}):** {}".format(stoch_data['k_value'], stoch_data['status'])
+                    st.markdown(stoch_text)
                 
                 with col_detail2:
                     st.markdown("**📈 추세 및 모멘텀:**")
@@ -2805,24 +2808,26 @@ def main():
                 icon = "⚪"
             
             # 신호 박스 표시
-            st.markdown(f"""
+            signal_html = """
             <div style="
-                background-color: {bg_color}; 
-                border: 2px solid {signal_color}; 
+                background-color: {}; 
+                border: 2px solid {}; 
                 border-radius: 10px; 
                 padding: 20px; 
                 text-align: center;
                 margin: 10px 0;
             ">
-                <h2 style="color: {signal_color}; margin: 0;">
-                    {icon} {signal_type}
+                <h2 style="color: {}; margin: 0;">
+                    {} {}
                 </h2>
                 <p style="margin: 5px 0; font-size: 16px;">
-                    신호 강도: <strong>{signal_strength:.1f}/10</strong> | 
-                    신뢰도: <strong>{confidence:.1f}%</strong>
+                    신호 강도: <strong>{:.1f}/10</strong> | 
+                    신뢰도: <strong>{:.1f}%</strong>
                 </p>
             </div>
-            """, unsafe_allow_html=True)
+            """.format(bg_color, signal_color, signal_color, icon, signal_type, signal_strength, confidence)
+            
+            st.markdown(signal_html, unsafe_allow_html=True)
             
             # 상세 분석 결과
             col_signal1, col_signal2 = st.columns(2)
@@ -3007,7 +3012,7 @@ def main():
                 
     # 데이터가 비어있는 경우 처리
     if data.empty:
-        error_message = f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요."
+        error_message = "{} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요.".format(selected_name)
         st.error(error_message)
     
     # 푸터
@@ -3023,3 +3028,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
