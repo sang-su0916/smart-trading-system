@@ -1336,10 +1336,11 @@ def analyze_trading_signals(data, current_price):
         signals.append("적정 가격 범위 내")
     
     # 필터 3: 최근 5일간 과도한 움직임이 없었는지 확인 (더 장기간)
-    recent_5day_change = abs((current_price - data['Close'].iloc[-6]) / data['Close'].iloc[-6]) * 100
-    if recent_5day_change < 8:  # 5일간 8% 이내 움직임 (더 엄격)
-        additional_filters_passed += 1
-        signals.append("안정적 가격 움직임")
+    if len(data) >= 6:
+        recent_5day_change = abs((current_price - data['Close'].iloc[-6]) / data['Close'].iloc[-6]) * 100
+        if recent_5day_change < 8:  # 5일간 8% 이내 움직임 (더 엄격)
+            additional_filters_passed += 1
+            signals.append("안정적 가격 움직임")
     
     # 필터 4: ATR 기반 변동성 체크 (추가 필터)
     atr_recent = data['Close'].rolling(window=14).std().iloc[-1] / current_price * 100
