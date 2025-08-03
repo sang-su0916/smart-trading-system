@@ -2342,48 +2342,76 @@ def main():
         index=3
     )
     
-    # 메인 컨텐츠
-    col1, col2 = st.columns([3, 1])
+    # 메인 컨텐츠 - 탭으로 구성
+    st.subheader(f"📈 {selected_name} ({selected_symbol})")
     
-    with col1:
-        st.subheader(f"📈 {selected_name} ({selected_symbol})")
+    # 데이터 로드
+    with st.spinner("데이터 로딩 중..."):
+        data = get_stock_data(selected_symbol, period)
         
-        # 데이터 로드
-        with st.spinner("데이터 로딩 중..."):
-            data = get_stock_data(selected_symbol, period)
-            
-        if not data.empty:
-            # 기술적 지표 계산
-            data = calculate_technical_indicators(data)
+    if not data.empty:
+        # 기술적 지표 계산
+        data = calculate_technical_indicators(data)
+        
+        # 현재 가격 정보 (탭 위에 표시)
+        latest = data.iloc[-1]
+        prev_close = data.iloc[-2]['Close'] if len(data) > 1 else latest['Close']
+        change = latest['Close'] - prev_close
+        change_pct = (change / prev_close) * 100
+        
+        col_price1, col_price2, col_price3, col_price4 = st.columns(4)
+        
+        with col_price1:
+            st.metric("현재가", f"{latest['Close']:,.0f}원", f"{change:+.0f}원")
+        
+        with col_price2:
+            st.metric("변동율", f"{change_pct:+.2f}%")
+        
+        with col_price3:
+            st.metric("거래량", f"{latest['Volume']:,.0f}주")
+        
+        with col_price4:
+            st.metric("RSI", f"{latest['RSI']:.1f}")
+        
+        st.markdown("---")
+        
+        # 탭 생성
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📊 차트 & 기본정보", 
+            "⚖️ 공정가치 분석", 
+            "🏭 업종 비교", 
+            "🎯 매매 신호", 
+            "📚 용어 설명"
+        ])
+        
+        with tab1:
+            st.subheader("📊 주가 차트")
             
             # 차트 생성
             chart = create_candlestick_chart(data, selected_name)
             if chart:
                 st.plotly_chart(chart, use_container_width=True)
             
-            # 현재 가격 정보
-            latest = data.iloc[-1]
-            prev_close = data.iloc[-2]['Close'] if len(data) > 1 else latest['Close']
-            change = latest['Close'] - prev_close
-            change_pct = (change / prev_close) * 100
-            
-            col_price1, col_price2, col_price3, col_price4 = st.columns(4)
-            
-            with col_price1:
-                st.metric("현재가", f"{latest['Close']:,.0f}원", f"{change:+.0f}원")
-            
-            with col_price2:
-                st.metric("변동율", f"{change_pct:+.2f}%")
-            
-            with col_price3:
-                st.metric("거래량", f"{latest['Volume']:,.0f}주")
-            
-            with col_price4:
-                st.metric("RSI", f"{latest['RSI']:.1f}")
-            
-            # 적정가 분석 섹션 추가
-            st.markdown("---")
-            st.subheader("📊 적정가 분석")
+            # 기본 정보 설명
+            with st.expander("📖 기본 정보 설명", expanded=False):
+                st.markdown("""
+                **📈 캔들스틱 차트란?**
+                - **빨간색 캔들**: 하락 (시가 > 종가)
+                - **파란색 캔들**: 상승 (시가 < 종가)
+                - **위아래 선**: 당일 최고가와 최저가
+                
+                **🔄 이동평균선 (MA):**
+                - **MA5 (노란선)**: 5일 평균가격
+                - **MA20 (빨간선)**: 20일 평균가격 
+                - **MA60 (파란선)**: 60일 평균가격
+                
+                **📊 거래량:**
+                - 차트 하단의 막대그래프
+                - 높을수록 관심도가 높음을 의미
+                """)
+        
+        with tab2:
+            st.subheader("⚖️ 공정가치 분석")
             
             # 적정가 분석 실행
             fair_value_analysis = analyze_fair_value(data, latest['Close'])
@@ -2597,14 +2625,154 @@ def main():
                 # 비교 불가능한 경우
                 st.warning(f"**업종:** {industry_comparison['industry']}")
                 st.info(industry_comparison.get('message', '동종업계 비교 분석을 할 수 없습니다.'))
+                
+            # 용어 설명 추가
+            with st.expander("📖 업종 비교 용어 설명", expanded=False):
+                st.markdown("""
+                **🏭 업종 비교 분석이란?**
+                - 같은 업종 내 다른 회사들과 비교분석
+                - 해당 종목의 상대적 위치 파악
+                
+                **📊 업종 내 위치 점수:**
+                - **70점 이상**: 업종 내 상위권 (🟢)
+                - **55-69점**: 업종 내 중상위권 (🟡)
+                - **45-54점**: 업종 내 중간 (⚪)
+                - **30-44점**: 업종 내 중하위권 (🟠)
+                - **30점 미만**: 업종 내 하위권 (🔴)
+                
+                **📈 비교 지표들:**
+                - **RSI**: 과매수/과매도 상태 비교
+                - **20일선 대비**: 단기 추세 비교
+                - **볼린저밴드**: 변동성 구간 비교
+                """)
         
-        else:
-            st.error(f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요.")
-    
-    with col2:
-        st.subheader("⚡ 과매수/과매도 분석")
+        with tab3:
+            st.subheader("🏭 업종 비교 분석")
+            
+            # 동종업계 비교 분석 실행
+            with st.spinner("동종업계 데이터 분석 중..."):
+                industry_comparison = analyze_industry_comparison(selected_symbol, data)
+            
+            if industry_comparison['comparison_available']:
+                # 업종 정보 표시
+                st.markdown(f"**📊 업종:** {industry_comparison['industry']} ({industry_comparison['peer_count']}개 종목 비교)")
+                
+                # 비교 결과 표시
+                col_comp1, col_comp2, col_comp3 = st.columns(3)
+                
+                with col_comp1:
+                    # 상대적 점수
+                    comp_score = industry_comparison['comparison_score']
+                    if comp_score >= 70:
+                        comp_color = "🟢"
+                    elif comp_score >= 55:
+                        comp_color = "🟡"
+                    elif comp_score <= 30:
+                        comp_color = "🔴"
+                    elif comp_score <= 45:
+                        comp_color = "🟠"
+                    else:
+                        comp_color = "⚪"
+                    
+                    st.metric(
+                        "업종 내 위치",
+                        f"{comp_color} {comp_score}/100",
+                        help="동종업계 대비 상대적 위치 (높을수록 업종 내 우위)"
+                    )
+                
+                with col_comp2:
+                    # 상대적 추천
+                    relative_rec = industry_comparison['relative_recommendation']
+                    if "강력 매수" in relative_rec:
+                        rel_color = "🟢"
+                    elif "매수" in relative_rec:
+                        rel_color = "🟡"
+                    elif "매도" in relative_rec:
+                        rel_color = "🔴"
+                    else:
+                        rel_color = "⚪"
+                    
+                    st.metric(
+                        "업종 내 추천",
+                        f"{rel_color} {relative_rec}",
+                        help="동종업계 대비 상대적 투자 매력도"
+                    )
+                
+                with col_comp3:
+                    # RSI 업종 비교
+                    current_rsi = industry_comparison['current_metrics']['rsi']
+                    avg_rsi = industry_comparison['industry_avg']['rsi']
+                    rsi_diff = current_rsi - avg_rsi
+                    
+                    st.metric(
+                        "RSI (업종 평균 대비)",
+                        f"{current_rsi:.1f}",
+                        f"{rsi_diff:+.1f}p",
+                        help="RSI 업종 평균과의 차이"
+                    )
+                
+                # 상세 비교 분석
+                with st.expander("🔍 업종 비교 상세 분석", expanded=True):
+                    # 비교 분석 결과
+                    st.markdown("**📈 주요 비교 포인트:**")
+                    if industry_comparison['comparison_analysis']:
+                        for analysis_item in industry_comparison['comparison_analysis']:
+                            st.markdown(f"• {analysis_item}")
+                    else:
+                        st.markdown("• 업종 평균과 유사한 수준")
+                    
+                    st.markdown("---")
+                    
+                    # 지표별 상세 비교
+                    col_detail_comp1, col_detail_comp2 = st.columns(2)
+                    
+                    with col_detail_comp1:
+                        st.markdown("**📊 현재 종목 지표:**")
+                        current = industry_comparison['current_metrics']
+                        st.markdown(f"• RSI: {current['rsi']:.1f}")
+                        st.markdown(f"• 20일선 대비: {((current['ma20_ratio'] - 1) * 100):+.1f}%")
+                        st.markdown(f"• 볼린저밴드 위치: {current['bb_position']:.1f}%")
+                    
+                    with col_detail_comp2:
+                        st.markdown("**🏭 업종 평균 지표:**")
+                        avg = industry_comparison['industry_avg']
+                        st.markdown(f"• RSI: {avg['rsi']:.1f}")
+                        st.markdown(f"• 20일선 대비: {((avg['ma20_ratio'] - 1) * 100):+.1f}%")
+                        st.markdown(f"• 볼린저밴드 위치: {avg['bb_position']:.1f}%")
+                    
+                    if industry_comparison['peer_codes']:
+                        st.markdown("**🔗 주요 비교 종목:**")
+                        peer_list = ", ".join(industry_comparison['peer_codes'])
+                        st.markdown(f"{peer_list}")
+                
+            else:
+                # 비교 불가능한 경우
+                st.warning(f"**업종:** {industry_comparison['industry']}")
+                st.info(industry_comparison.get('message', '동종업계 비교 분석을 할 수 없습니다.'))
+                
+            # 용어 설명 추가
+            with st.expander("📖 업종 비교 용어 설명", expanded=False):
+                st.markdown("""
+                **🏭 업종 비교 분석이란?**
+                - 같은 업종 내 다른 회사들과 비교분석
+                - 해당 종목의 상대적 위치 파악
+                
+                **📊 업종 내 위치 점수:**
+                - **70점 이상**: 업종 내 상위권 (🟢)
+                - **55-69점**: 업종 내 중상위권 (🟡)
+                - **45-54점**: 업종 내 중간 (⚪)
+                - **30-44점**: 업종 내 중하위권 (🟠)
+                - **30점 미만**: 업종 내 하위권 (🔴)
+                
+                **📈 비교 지표들:**
+                - **RSI**: 과매수/과매도 상태 비교
+                - **20일선 대비**: 단기 추세 비교
+                - **볼린저밴드**: 변동성 구간 비교
+                """)
         
-        if not data.empty:
+        with tab4:
+            st.subheader("🎯 매매 신호")
+            
             # 과매수/과매도 분석 실행
             overbought_analysis = analyze_overbought_oversold(data, latest['Close'])
             
@@ -2619,554 +2787,227 @@ def main():
                 bg_color = "#d4edda"
                 icon = "🟢"
             elif "매수" in signal_type:
-                signal_color = "#ffc107"
-                bg_color = "#fff3cd"
+                signal_color = "#28a745"
+                bg_color = "#d4edda" 
                 icon = "🟡"
             elif "강력 매도" in signal_type:
                 signal_color = "#dc3545"
                 bg_color = "#f8d7da"
                 icon = "🔴"
             elif "매도" in signal_type:
-                signal_color = "#fd7e14"
-                bg_color = "#fff0e6"
+                signal_color = "#dc3545"
+                bg_color = "#f8d7da"
                 icon = "🟠"
             else:
                 signal_color = "#6c757d"
                 bg_color = "#f8f9fa"
                 icon = "⚪"
             
-            # 신호 카드 표시
+            # 신호 박스 표시
             st.markdown(f"""
-            <div style='padding: 15px; border-radius: 10px; 
-                 background-color: {bg_color}; 
-                 border-left: 5px solid {signal_color}; 
-                 margin-bottom: 15px;'>
-                <strong style='font-size: 1.1em;'>{icon} {signal_type}</strong><br>
-                <small>신호 강도: {signal_strength:.1f} | 신뢰도: {confidence:.1f}%</small>
+            <div style="
+                background-color: {bg_color}; 
+                border: 2px solid {signal_color}; 
+                border-radius: 10px; 
+                padding: 20px; 
+                text-align: center;
+                margin: 10px 0;
+            ">
+                <h2 style="color: {signal_color}; margin: 0;">
+                    {icon} {signal_type}
+                </h2>
+                <p style="margin: 5px 0; font-size: 16px;">
+                    신호 강도: <strong>{signal_strength:.1f}/10</strong> | 
+                    신뢰도: <strong>{confidence:.1f}%</strong>
+                </p>
             </div>
             """, unsafe_allow_html=True)
             
-            # 추천 사항
-            st.markdown("**💡 추천 사항:**")
-            for recommendation in overbought_analysis['recommendations']:
-                st.markdown(f"• {recommendation}")
+            # 상세 분석 결과
+            col_signal1, col_signal2 = st.columns(2)
             
-            # 상세 지표 분석
-            with st.expander("📊 상세 지표 분석"):
-                analysis = overbought_analysis['detailed_analysis']
-                
-                # RSI 분석
-                rsi_data = analysis.get('rsi', {})
-                st.markdown(f"**RSI ({rsi_data.get('value', 0):.1f}):** {rsi_data.get('signal', 'N/A')}")
-                
-                # 스토캐스틱 분석
-                stoch_data = analysis.get('stochastic', {})
-                st.markdown(f"**스토캐스틱 (%K: {stoch_data.get('k_value', 0):.1f}):** {stoch_data.get('signal', 'N/A')}")
-                
-                # 볼린저 밴드 분석
-                bb_data = analysis.get('bollinger_bands', {})
-                st.markdown(f"**볼린저밴드 (위치: {bb_data.get('position', 0):.1f}%):** {bb_data.get('signal', 'N/A')}")
-                
-                # 이동평균 분석
-                ma_data = analysis.get('moving_average', {})
-                st.markdown(f"**이동평균 편향 ({ma_data.get('avg_deviation', 0):.1f}%):** {ma_data.get('signal', 'N/A')}")
-                
-                # 거래량 분석
-                vol_data = analysis.get('volume', {})
-                st.markdown(f"**거래량 (비율: {vol_data.get('ratio', 0):.1f}배):** {vol_data.get('signal', 'N/A')}")
-        
-        # 기술적 지표 요약
-        st.subheader("📊 핵심 지표 요약")
-        
-        if not data.empty:
-            latest = data.iloc[-1]
+            with col_signal1:
+                st.markdown("**📊 주요 신호 지표:**")
+                for indicator, result in overbought_analysis['indicators'].items():
+                    status_icon = "🟢" if "매수" in result['signal'] else "🔴" if "매도" in result['signal'] else "⚪"
+                    st.markdown(f"**{indicator}**: {status_icon} {result['signal']} ({result['value']:.1f})")
             
-            # 종합 상태 표시
-            col_indicator1, col_indicator2 = st.columns(2)
+            with col_signal2:
+                st.markdown("**🎯 매매 전략:**")
+                for strategy in overbought_analysis['trading_strategies']:
+                    st.markdown(f"• {strategy}")
             
-            with col_indicator1:
-                # RSI 상태
-                rsi_value = latest['RSI']
-                if rsi_value < 30:
-                    rsi_status = "🔵 과매도"
-                elif rsi_value > 70:
-                    rsi_status = "🔴 과매수"
-                else:
-                    rsi_status = "⚪ 중립"
-                
-                st.metric("RSI (14일)", f"{rsi_value:.1f}", rsi_status)
-                
-                # 스토캐스틱 상태
-                stoch_value = latest['Stoch_K']
-                if stoch_value < 20:
-                    stoch_status = "🔵 과매도"
-                elif stoch_value > 80:
-                    stoch_status = "🔴 과매수"
-                else:
-                    stoch_status = "⚪ 중립"
-                
-                st.metric("스토캐스틱", f"{stoch_value:.1f}", stoch_status)
-            
-            with col_indicator2:
-                # 볼린저 밴드 위치
-                bb_position = latest['BB_Position']
-                if bb_position < 20:
-                    bb_status = "🔵 하단권"
-                elif bb_position > 80:
-                    bb_status = "🔴 상단권"
-                else:
-                    bb_status = "⚪ 중간권"
-                
-                st.metric("볼린저밴드", f"{bb_position:.1f}%", bb_status)
-                
-                # 거래량 상태
-                volume_ratio = latest['Volume_Ratio']
-                if volume_ratio > 2:
-                    vol_status = "📈 높음"
-                elif volume_ratio < 0.5:
-                    vol_status = "📉 낮음"
-                else:
-                    vol_status = "📊 보통"
-                
-                st.metric("거래량 비율", f"{volume_ratio:.1f}배", vol_status)
-        
-        # === 새로운 고도화된 매매 신호 시스템 ===
-        st.subheader("🎯 고도화된 매매 신호")
-        
-        if not data.empty:
-            # 고도화된 매매 신호 분석 실행
+            # 고급 매매 신호 분석
             advanced_signals = generate_advanced_trading_signals(data)
             
-            # 주요 신호들 표시
-            signals = advanced_signals['signals']
+            st.markdown("---")
+            st.subheader("🚀 고급 매매 신호")
             
-            if signals:
-                st.markdown("**📈 우선순위 매매 신호:**")
-                
-                for i, signal in enumerate(signals):
-                    # 신호별 색상 및 아이콘 설정
-                    if '매수' in signal['signal']:
-                        if signal['confidence'] >= 85:
-                            color = "#28a745"
-                            bg_color = "#d4edda"
-                        else:
-                            color = "#ffc107"
-                            bg_color = "#fff3cd"
-                    elif '매도' in signal['signal']:
-                        if signal['confidence'] >= 85:
-                            color = "#dc3545"
-                            bg_color = "#f8d7da"
-                        else:
-                            color = "#fd7e14"
-                            bg_color = "#fff0e6"
-                    else:
-                        color = "#6c757d"
-                        bg_color = "#f8f9fa"
-                    
-                    # 신호 카드 표시
-                    st.markdown(f"""
-                    <div style='padding: 12px; border-radius: 8px; 
-                         background-color: {bg_color}; 
-                         border-left: 4px solid {color}; 
-                         margin-bottom: 10px;'>
-                        <strong>{signal['icon']} {signal['type']}</strong><br>
-                        <span style='color: {color}; font-weight: bold;'>{signal['signal']}</span> 
-                        | 신뢰도: {signal['confidence']}% | {signal['timeframe']}<br>
-                        <small>{signal['description']}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("현재 명확한 매매 신호가 감지되지 않습니다.")
+            # 통합 신호 표시
+            integrated_signal = advanced_signals['integrated_signal']
+            signal_strength = advanced_signals['signal_strength']
             
-            # 상세 분석 정보
-            with st.expander("🔍 상세 신호 분석"):
-                # 트렌드 분석
-                trend_analysis = advanced_signals['trend_analysis']
-                if trend_analysis:
-                    st.markdown("**📈 트렌드 분석:**")
-                    st.markdown(f"• 현재 추세: {trend_analysis.get('trend_direction', 'N/A')}")
-                    st.markdown(f"• 추세 강도: {trend_analysis.get('trend_strength', 0)}%")
-                    st.markdown(f"• 최근 모멘텀: {trend_analysis.get('recent_momentum', 0)}%")
-                    
-                    if trend_analysis.get('reversal_signals'):
-                        st.markdown("• 전환 신호:")
-                        for reversal in trend_analysis['reversal_signals']:
-                            st.markdown(f"  - {reversal}")
-                    
-                    st.markdown("---")
-                
-                # 지지/저항선 분석
-                support_resistance = advanced_signals['support_resistance']
-                if support_resistance:
-                    st.markdown("**📊 지지/저항선 분석:**")
-                    st.markdown(f"• 저항선: {support_resistance.get('resistance_level', 0):,.0f}원 (거리: {support_resistance.get('resistance_distance', 0):+.1f}%)")
-                    st.markdown(f"• 지지선: {support_resistance.get('support_level', 0):,.0f}원 (거리: {support_resistance.get('support_distance', 0):+.1f}%)")
-                    
-                    breakout_signals = support_resistance.get('breakout_signals', [])
-                    if breakout_signals:
-                        st.markdown("• 돌파 신호:")
-                        for breakout in breakout_signals:
-                            st.markdown(f"  - {breakout['type']}: {breakout['description']}")
-                    
-                    st.markdown("---")
-                
-                # 패턴 인식
-                pattern_recognition = advanced_signals['pattern_recognition']
-                if pattern_recognition and pattern_recognition.get('patterns'):
-                    st.markdown("**🔍 차트 패턴 인식:**")
-                    for pattern in pattern_recognition['patterns']:
-                        st.markdown(f"• {pattern['pattern']}: {pattern['description']}")
-                    
-                    st.markdown("---")
-                
-                # 다중 시간프레임 분석
-                timeframe_analysis = advanced_signals['timeframe_analysis']
-                if timeframe_analysis:
-                    st.markdown("**⏰ 다중 시간프레임 분석:**")
-                    
-                    timeframes = timeframe_analysis.get('timeframes', {})
-                    if timeframes:
-                        col_tf1, col_tf2, col_tf3 = st.columns(3)
-                        
-                        with col_tf1:
-                            short_term = timeframes.get('short_term', {})
-                            st.metric("단기 (5일)", 
-                                    short_term.get('signal', 'N/A'),
-                                    f"{short_term.get('period_return', 0):+.1f}%")
-                        
-                        with col_tf2:
-                            medium_term = timeframes.get('medium_term', {})
-                            st.metric("중기 (20일)", 
-                                    medium_term.get('signal', 'N/A'),
-                                    f"{medium_term.get('period_return', 0):+.1f}%")
-                        
-                        with col_tf3:
-                            long_term = timeframes.get('long_term', {})
-                            st.metric("장기 (60일)", 
-                                    long_term.get('signal', 'N/A'),
-                                    f"{long_term.get('period_return', 0):+.1f}%")
-                    
-                    consensus = timeframe_analysis.get('consensus', 'N/A')
-                    consensus_strength = timeframe_analysis.get('consensus_strength', 0)
-                    st.markdown(f"**종합 합의:** {consensus} ({consensus_strength}%)")
-        
-        # === 위험도 평가 및 포지션 관리 시스템 ===
-        st.subheader("⚠️ 위험도 평가 & 포지션 관리")
-        
-        if not data.empty:
-            # 투자금액 입력 
-            investment_amount = st.number_input(
-                "💰 투자 예정 금액 (원)", 
-                min_value=100000, 
-                max_value=100000000, 
-                value=1000000, 
-                step=100000,
-                help="위험도 평가 및 포지션 크기 계산을 위한 투자 금액"
-            )
+            col_adv1, col_adv2, col_adv3 = st.columns(3)
             
-            # 위험도 평가 실행
-            risk_assessment = calculate_risk_assessment(data, latest['Close'], investment_amount)
-            
-            if risk_assessment:
-                # 종합 위험 등급 표시
-                overall_risk = risk_assessment['overall_risk_grade']
-                st.markdown(f"""
-                <div style='padding: 15px; border-radius: 10px; 
-                     background-color: {'#d4edda' if overall_risk['color'] == '🟢' else '#fff3cd' if overall_risk['color'] == '🟡' else '#fff0e6' if overall_risk['color'] == '🟠' else '#f8d7da'}; 
-                     border-left: 5px solid {'#28a745' if overall_risk['color'] == '🟢' else '#ffc107' if overall_risk['color'] == '🟡' else '#fd7e14' if overall_risk['color'] == '🟠' else '#dc3545'}; 
-                     margin-bottom: 15px;'>
-                    <strong style='font-size: 1.1em;'>{overall_risk['color']} 종합 위험도: {overall_risk['grade']}</strong><br>
-                    <small>위험 점수: {overall_risk['score']}/100 | {overall_risk['investment_advice']}</small>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # 주요 메트릭 표시
-                col_risk1, col_risk2, col_risk3 = st.columns(3)
-                
-                with col_risk1:
-                    # 포지션 크기
-                    position_sizing = risk_assessment['position_sizing']
-                    st.metric(
-                        "권장 포지션 크기",
-                        f"{position_sizing['color']} {position_sizing['position_ratio']}%",
-                        f"{position_sizing['recommended_amount']:,}원",
-                        help="위험도를 고려한 권장 투자 비중"
-                    )
-                
-                with col_risk2:
-                    # 변동성
-                    volatility = risk_assessment['volatility_analysis']
-                    st.metric(
-                        "연환산 변동성",
-                        f"{volatility['volatility_color']} {volatility['volatility_20d']}%",
-                        f"{volatility['volatility_grade']}",
-                        help="20일 기준 연환산 변동성"
-                    )
-                
-                with col_risk3:
-                    # 손익비
-                    sltp = risk_assessment['stop_loss_take_profit']
-                    risk_reward_color = "🟢" if sltp['risk_reward_1'] >= 2 else "🟡" if sltp['risk_reward_1'] >= 1.5 else "🔴"
-                    st.metric(
-                        "손익비 (Risk:Reward)",
-                        f"{risk_reward_color} 1:{sltp['risk_reward_1']}",
-                        f"손절 {sltp['potential_loss']:.1f}% | 익절 {sltp['potential_gain_1']:.1f}%",
-                        help="위험 대비 수익 비율"
-                    )
-                
-                # 손절매/익절매 가격대
-                st.markdown("**💹 손절매/익절매 가격대:**")
-                col_sltp1, col_sltp2, col_sltp3 = st.columns(3)
-                
-                with col_sltp1:
-                    st.metric(
-                        "🛑 손절매",
-                        f"{sltp['stop_loss_price']:,}원",
-                        f"{sltp['potential_loss']:.1f}%",
-                        delta_color="inverse",
-                        help=f"방법: {sltp['stop_loss_method']}"
-                    )
-                
-                with col_sltp2:
-                    st.metric(
-                        "🎯 1차 익절",
-                        f"{sltp['take_profit_1']:,}원",
-                        f"+{sltp['potential_gain_1']:.1f}%",
-                        help="첫 번째 익절매 목표가"
-                    )
-                
-                with col_sltp3:
-                    st.metric(
-                        "🚀 2차 익절",
-                        f"{sltp['take_profit_2']:,}원",
-                        f"+{sltp['potential_gain_2']:.1f}%",
-                        help="두 번째 익절매 목표가"
-                    )
-                
-                # 포지션 분할 제안
-                position_sizing = risk_assessment['position_sizing']
-                if position_sizing['split_amounts']:
-                    st.markdown("**📊 분할 매수 제안:**")
-                    st.markdown(f"• {position_sizing['split_suggestion']}")
-                    
-                    split_info = ""
-                    for i, amount in enumerate(position_sizing['split_amounts'], 1):
-                        split_info += f"**{i}차:** {amount:,}원 "
-                    st.markdown(split_info)
-                
-                # 위험 관리 추천사항
-                st.markdown("**💡 위험 관리 추천사항:**")
-                recommendations = risk_assessment['recommendations']
-                for recommendation in recommendations:
-                    st.markdown(f"• {recommendation}")
-                
-                # 상세 위험 분석
-                with st.expander("🔍 상세 위험 분석"):
-                    # 위험 점수 구성 요소
-                    st.markdown("**📊 위험 점수 구성:**")
-                    risk_score = risk_assessment['risk_score']
-                    
-                    for factor_name, factor_score in risk_score['risk_factors']:
-                        progress_ratio = factor_score / 30 if factor_name == '변동성' else factor_score / 20 if factor_name in ['추세', '기술적지표'] else factor_score / 15
-                        progress_ratio = min(1.0, progress_ratio)
-                        
-                        st.markdown(f"• **{factor_name}**: {factor_score:.1f}점")
-                        st.progress(progress_ratio)
-                    
-                    st.markdown(f"**총 위험 점수: {risk_score['total_score']:.1f}/100점**")
-                    
-                    st.markdown("---")
-                    
-                    # 시장 상황 분석
-                    market_condition = risk_assessment['market_condition_risk']
-                    if market_condition:
-                        st.markdown("**🌍 시장 상황 분석:**")
-                        st.markdown(f"• **종합 상황**: {market_condition['overall_color']} {market_condition['overall_condition']}")
-                        st.markdown(f"• {market_condition['condition_description']}")
-                        
-                        st.markdown("**세부 상황:**")
-                        for condition_name, status, color in market_condition['market_conditions']:
-                            st.markdown(f"• {condition_name}: {color} {status}")
-                    
-                    st.markdown("---")
-                    
-                    # 변동성 상세 분석
-                    volatility = risk_assessment['volatility_analysis']
-                    st.markdown("**📈 변동성 상세 분석:**")
-                    st.markdown(f"• 20일 변동성: {volatility['volatility_20d']}%")
-                    st.markdown(f"• 60일 변동성: {volatility['volatility_60d']}%")
-                    st.markdown(f"• ATR: {volatility['atr_percentage']}%")
-                    st.markdown(f"• 볼린저밴드 폭: {volatility['bb_width']}%")
-                    st.markdown(f"• 최대 낙폭: {volatility['max_drawdown']}%")
-                    st.markdown(f"• 현재 낙폭: {volatility['current_drawdown']}%")
-        
-        # === 시간프레임별 투자 전략 시스템 ===
-        st.subheader("⏰ 시간프레임별 투자 전략")
-        
-        if not data.empty:
-            # 시간프레임별 신호 분석 실행
-            timeframe_signals = generate_timeframe_specific_signals(data, latest['Close'])
-            
-            if timeframe_signals:
-                # 종합 점수 및 권장 전략 표시
-                recommended_strategy = timeframe_signals['recommended_strategy']
-                timeframe_scores = timeframe_signals['timeframe_scores']
-                
-                # 권장 전략 카드
-                st.markdown(f"""
-                <div style='padding: 15px; border-radius: 10px; 
-                     background-color: {'#d4edda' if recommended_strategy['color'] == '🟢' else '#fff3cd' if recommended_strategy['color'] == '🟡' else '#fff0e6' if recommended_strategy['color'] == '🟠' else '#f8d7da'}; 
-                     border-left: 5px solid {'#28a745' if recommended_strategy['color'] == '🟢' else '#ffc107' if recommended_strategy['color'] == '🟡' else '#fd7e14' if recommended_strategy['color'] == '🟠' else '#dc3545'}; 
-                     margin-bottom: 15px;'>
-                    <strong style='font-size: 1.1em;'>{recommended_strategy['color']} 권장 전략: {recommended_strategy['strategy']}</strong><br>
-                    <small>{recommended_strategy['description']}</small><br>
-                    <small><strong>자금 배분:</strong> {recommended_strategy['allocation']}</small>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # 시간프레임별 점수 표시
-                col_tf1, col_tf2, col_tf3 = st.columns(3)
-                
-                scores = timeframe_scores['individual_scores']
-                
-                with col_tf1:
-                    # 스윙 트레이딩 (1-5일)
-                    swing_data = timeframe_signals.get('swing_trading', {})
-                    if swing_data:
-                        swing_color = swing_data['recommendation_color']
-                        st.metric(
-                            "🔄 스윙 트레이딩 (1-5일)",
-                            f"{swing_color} {swing_data['score']}/100",
-                            f"{swing_data['recommendation']}",
-                            help=f"기간: {swing_data['time_horizon']} | {swing_data['strategy_description']}"
-                        )
-                
-                with col_tf2:
-                    # 포지션 트레이딩 (1-4주)
-                    position_data = timeframe_signals.get('position_trading', {})
-                    if position_data:
-                        position_color = position_data['recommendation_color']
-                        st.metric(
-                            "📈 포지션 트레이딩 (1-4주)",
-                            f"{position_color} {position_data['score']}/100",
-                            f"{position_data['recommendation']}",
-                            help=f"기간: {position_data['time_horizon']} | {position_data['strategy_description']}"
-                        )
-                
-                with col_tf3:
-                    # 장기 투자 (1-6개월)
-                    longterm_data = timeframe_signals.get('long_term_investment', {})
-                    if longterm_data:
-                        longterm_color = longterm_data['recommendation_color']
-                        st.metric(
-                            "🏦 장기 투자 (1-6개월)",
-                            f"{longterm_color} {longterm_data['score']}/100",
-                            f"{longterm_data['recommendation']}",
-                            help=f"기간: {longterm_data['time_horizon']} | {longterm_data['strategy_description']}"
-                        )
-                
-                # 종합 점수
-                overall_score = timeframe_scores['overall_score']
-                best_timeframe = timeframe_scores.get('best_timeframe', 'N/A')
-                worst_timeframe = timeframe_scores.get('worst_timeframe', 'N/A')
-                
-                st.markdown(f"""
-                **🎯 종합 분석:**
-                • **전체 점수**: {overall_score}/100
-                • **최적 시간프레임**: {best_timeframe}
-                • **주의 시간프레임**: {worst_timeframe}
-                """)
-                
-                # 시간프레임별 상세 신호
-                with st.expander("🔍 시간프레임별 상세 신호"):
-                    
-                    # 탭으로 구분
-                    tab1, tab2, tab3 = st.tabs(["📊 스윙 트레이딩", "📈 포지션 트레이딩", "🏦 장기 투자"])
-                    
-                    with tab1:
-                        # 스윙 트레이딩 상세
-                        swing_data = timeframe_signals.get('swing_trading', {})
-                        if swing_data:
-                            st.markdown(f"**{swing_data['recommendation_color']} {swing_data['recommendation']}** (점수: {swing_data['score']}/100)")
-                            st.markdown(f"**투자 기간:** {swing_data['time_horizon']}")
-                            st.markdown(f"**전략 설명:** {swing_data['strategy_description']}")
-                            
-                            st.markdown("**📋 주요 신호:**")
-                            for signal in swing_data.get('signals', []):
-                                st.markdown(f"• {signal}")
-                        else:
-                            st.info("데이터가 부족하여 스윙 트레이딩 분석을 할 수 없습니다.")
-                    
-                    with tab2:
-                        # 포지션 트레이딩 상세
-                        position_data = timeframe_signals.get('position_trading', {})
-                        if position_data:
-                            st.markdown(f"**{position_data['recommendation_color']} {position_data['recommendation']}** (점수: {position_data['score']}/100)")
-                            st.markdown(f"**투자 기간:** {position_data['time_horizon']}")
-                            st.markdown(f"**전략 설명:** {position_data['strategy_description']}")
-                            
-                            st.markdown("**📋 주요 신호:**")
-                            for signal in position_data.get('signals', []):
-                                st.markdown(f"• {signal}")
-                        else:
-                            st.info("데이터가 부족하여 포지션 트레이딩 분석을 할 수 없습니다.")
-                    
-                    with tab3:
-                        # 장기 투자 상세
-                        longterm_data = timeframe_signals.get('long_term_investment', {})
-                        if longterm_data:
-                            st.markdown(f"**{longterm_data['recommendation_color']} {longterm_data['recommendation']}** (점수: {longterm_data['score']}/100)")
-                            st.markdown(f"**투자 기간:** {longterm_data['time_horizon']}")
-                            st.markdown(f"**전략 설명:** {longterm_data['strategy_description']}")
-                            
-                            st.markdown("**📋 주요 신호:**")
-                            for signal in longterm_data.get('signals', []):
-                                st.markdown(f"• {signal}")
-                        else:
-                            st.info("데이터가 부족하여 장기 투자 분석을 할 수 없습니다. (120일 이상 필요)")
-                
-                # 실행 가이드
-                st.markdown("**🎯 실행 가이드:**")
-                
-                if recommended_strategy['strategy'] == '다중 시간프레임 투자':
-                    st.markdown("""
-                    • **1단계**: 장기 포지션 30% 먼저 구축
-                    • **2단계**: 중기 추세 확인 후 40% 추가 투자  
-                    • **3단계**: 단기 기회 포착으로 30% 스윙 매매
-                    • **관리**: 각 시간프레임별 손절매 라인 준수
-                    """)
-                elif '집중 투자' in recommended_strategy['strategy']:
-                    best_tf = timeframe_scores.get('best_timeframe', '')
-                    if best_tf == 'swing':
-                        st.markdown("""
-                        • **1단계**: 단기 기술적 신호 확인 (RSI, 스토캐스틱)
-                        • **2단계**: 80% 자금으로 스윙 포지션 구축
-                        • **3단계**: 1-5일 내 익절/손절 실행
-                        • **주의**: 빠른 의사결정과 엄격한 손절매 필수
-                        """)
-                    elif best_tf == 'position':
-                        st.markdown("""
-                        • **1단계**: 중기 추세 확인 (이동평균, MACD)
-                        • **2단계**: 80% 자금으로 포지션 구축
-                        • **3단계**: 1-4주 보유하며 추세 추종
-                        • **관리**: 주간 단위 점검 및 추세 변화 모니터링
-                        """)
-                    elif best_tf == 'long_term':
-                        st.markdown("""
-                        • **1단계**: 장기 펀더멘털 및 기술적 분석
-                        • **2단계**: 80% 자금으로 장기 포지션 구축  
-                        • **3단계**: 1-6개월 보유하며 큰 흐름 추종
-                        • **관리**: 월간 단위 점검 및 기본면 변화 모니터링
-                        """)
+            with col_adv1:
+                if integrated_signal['action'] == 'BUY':
+                    action_color = "🟢"
+                elif integrated_signal['action'] == 'SELL':
+                    action_color = "🔴"
                 else:
-                    st.markdown("""
-                    • **보수적 접근**: 소액 분할 투자로 시작
-                    • **지속적 모니터링**: 신호 변화 추적
-                    • **리스크 관리**: 엄격한 손절매 및 포지션 관리
-                    • **기회 포착**: 명확한 신호 발생시 비중 확대
-                    """)
-
-    # 하단 정보
+                    action_color = "⚪"
+                
+                st.metric(
+                    "통합 신호",
+                    f"{action_color} {integrated_signal['action']}",
+                    f"강도: {signal_strength:.1f}/10"
+                )
+            
+            with col_adv2:
+                priority_signal = advanced_signals['priority_signals'][0] if advanced_signals['priority_signals'] else {'type': '없음', 'strength': 0}
+                st.metric(
+                    "우선순위 신호",
+                    priority_signal['type'],
+                    f"강도: {priority_signal['strength']:.1f}/10"
+                )
+            
+            with col_adv3:
+                risk_level = advanced_signals['risk_assessment']['risk_level']
+                if risk_level == 'LOW':
+                    risk_color = "🟢"
+                elif risk_level == 'MEDIUM':
+                    risk_color = "🟡"
+                else:
+                    risk_color = "🔴"
+                
+                st.metric(
+                    "위험도",
+                    f"{risk_color} {risk_level}",
+                    f"점수: {advanced_signals['risk_assessment']['risk_score']:.1f}/10"
+                )
+            
+            # 매매 신호 용어 설명
+            with st.expander("📖 매매 신호 용어 설명", expanded=False):
+                st.markdown("""
+                **🎯 매매 신호란?**
+                - 기술적 지표를 종합해서 매수/매도 타이밍을 알려주는 신호
+                
+                **📊 신호 종류:**
+                - **강력 매수** (🟢): 여러 지표가 매수 신호 → 적극 매수 고려
+                - **매수** (🟡): 일부 지표가 매수 신호 → 신중한 매수 고려
+                - **중립** (⚪): 명확한 신호 없음 → 관망
+                - **매도** (🟠): 일부 지표가 매도 신호 → 신중한 매도 고려
+                - **강력 매도** (🔴): 여러 지표가 매도 신호 → 적극 매도 고려
+                
+                **🔢 신호 강도 (1-10점):**
+                - **8-10점**: 매우 강한 신호
+                - **6-7점**: 강한 신호
+                - **4-5점**: 보통 신호
+                - **1-3점**: 약한 신호
+                
+                **⚠️ 주의사항:**
+                - 매매 신호는 참고용으로 최종 투자 결정은 본인이 하세요
+                - 여러 지표를 종합적으로 판단하는 것이 중요합니다
+                """)
+        
+        with tab5:
+            st.subheader("📚 투자 용어 완전 가이드")
+            
+            # 기본 용어
+            with st.expander("📈 기본 주식 용어", expanded=True):
+                st.markdown("""
+                **💰 기본 가격 용어:**
+                - **현재가**: 지금 거래되고 있는 주식 가격
+                - **시가**: 장 시작할 때 첫 거래 가격
+                - **종가**: 장 마감할 때 마지막 거래 가격
+                - **고가**: 하루 중 가장 높았던 가격
+                - **저가**: 하루 중 가장 낮았던 가격
+                
+                **📊 거래 관련:**
+                - **거래량**: 하루 동안 거래된 주식 수량
+                - **거래대금**: 하루 동안 거래된 총 금액
+                - **변동율**: 전날 종가 대비 오늘 가격 변화율
+                
+                **📈 차트 용어:**
+                - **캔들**: 하루의 시가, 고가, 저가, 종가를 보여주는 막대
+                - **양봉(상승)**: 종가가 시가보다 높은 파란색 캔들
+                - **음봉(하락)**: 종가가 시가보다 낮은 빨간색 캔들
+                """)
+            
+            # 기술적 지표
+            with st.expander("🔢 기술적 지표 완전 설명", expanded=False):
+                st.markdown("""
+                **📊 RSI (Relative Strength Index):**
+                - **의미**: 주식이 과매수/과매도 상태인지 알려주는 지표
+                - **수치**: 0~100 사이
+                - **해석**:
+                  - 70 이상: 과매수 (가격이 많이 올라서 조정 가능성)
+                  - 30 이하: 과매도 (가격이 많이 떨어서 반등 가능성)
+                  - 30~70: 정상 구간
+                
+                **📈 이동평균선 (Moving Average):**
+                - **의미**: 일정 기간 동안의 평균 가격선
+                - **종류**:
+                  - MA5: 5일 평균 (단기 추세)
+                  - MA20: 20일 평균 (중기 추세)
+                  - MA60: 60일 평균 (장기 추세)
+                - **활용**: 현재가가 이동평균선 위에 있으면 상승 추세
+                
+                **🎯 볼린저 밴드:**
+                - **의미**: 주가의 변동 범위를 보여주는 밴드
+                - **구성**: 중심선(20일 이동평균) + 상한선 + 하한선
+                - **해석**:
+                  - 상한선 근처: 고점 구간 (매도 고려)
+                  - 하한선 근처: 저점 구간 (매수 고려)
+                  - 밴드 폭이 좁아지면: 큰 움직임 예상
+                
+                **⚡ MACD:**
+                - **의미**: 주가의 추세 변화를 보여주는 지표
+                - **신호**:
+                  - MACD선이 신호선 위로: 매수 신호
+                  - MACD선이 신호선 아래로: 매도 신호
+                  - 0선 돌파: 추세 전환 신호
+                
+                **🎲 스토캐스틱:**
+                - **의미**: 일정 기간 중 현재 가격의 상대적 위치
+                - **수치**: 0~100
+                - **해석**:
+                  - 80 이상: 과매수
+                  - 20 이하: 과매도
+                  - %K선과 %D선의 교차로 매매 타이밍 판단
+                """)
+            
+            # 투자 전략
+            with st.expander("💡 투자 전략 가이드", expanded=False):
+                st.markdown("""
+                **🎯 기본 투자 원칙:**
+                1. **분산투자**: 여러 종목에 나누어 투자
+                2. **장기투자**: 단기 변동에 흔들리지 않기
+                3. **손절매**: 손실이 커지기 전에 정리
+                4. **수익실현**: 목표 수익률 달성 시 일부 매도
+                
+                **📊 신호 활용법:**
+                - **여러 지표 종합**: 한 지표만 보지 말고 종합 판단
+                - **추세 확인**: 전체적인 흐름 파악이 우선
+                - **거래량 확인**: 신호와 함께 거래량도 증가해야 신뢰성↑
+                - **시장 상황 고려**: 전체 시장 상황도 함께 고려
+                
+                **⚠️ 위험 관리:**
+                - **투자 금액**: 전체 자산의 일부만 투자
+                - **손실 한도**: 미리 손실 한도 정하기
+                - **감정 조절**: 욕심과 두려움 컨트롤
+                - **정보 수집**: 지속적인 학습과 정보 습득
+                
+                **🎯 매매 타이밍:**
+                - **매수**: 여러 지표가 동시에 매수 신호 + 거래량 증가
+                - **매도**: 목표가 도달 or 손절가 도달 or 여러 지표 매도 신호
+                - **관망**: 신호가 명확하지 않을 때는 기다리기
+                """)
+        
+        else:
+            st.error(f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요.")
+    
+    # 푸터
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
@@ -3176,33 +3017,6 @@ def main():
         "</div>", 
         unsafe_allow_html=True
     )
-    
-    # 향후 업그레이드 계획
-    with st.expander("🔮 향후 업그레이드 계획"):
-        st.markdown("""
-        ### 🚀 **실시간 데이터 업그레이드 (v3.0 예정)**
-        
-        **현재 상태**: 
-        - 📊 Yahoo Finance: 15-20분 지연
-        - 🇰🇷 pykrx: 20분 지연
-        
-        **업그레이드 계획**:
-        - ⚡ **한국투자증권 API** 연동
-        - 🕐 **실시간 데이터**: 1-2초 지연으로 단축
-        - 📈 **분봉 차트**: 1분/5분 단위 분석
-        - 📋 **실시간 호가창**: 매수/매도 잔량 표시
-        - 🔔 **알림 시스템**: 목표가/손절가 도달 알림
-        
-        **추가 기능**:
-        - 📊 **재무제표 데이터**: PER, PBR, ROE 등
-        - 🤖 **모의투자**: 가상 포트폴리오 관리
-        - 📱 **모바일 최적화**: 반응형 UI 개선
-        - 🔐 **개인화**: 관심종목 및 설정 저장
-        
-        **예상 출시**: 2024년 하반기
-        """)
-        
-        st.info("💡 **참고**: 현재 버전도 일간/주간 투자 분석에는 충분히 정확한 데이터를 제공합니다.")
 
 if __name__ == "__main__":
     main()
