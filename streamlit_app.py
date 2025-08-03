@@ -369,6 +369,10 @@ def display_delayed_data(data, data_source):
     """지연 데이터 표시"""
     st.info("🟡 지연 데이터 ({}, ~20분 지연)".format(data_source))
     
+    if data.empty:
+        st.warning("데이터가 없습니다.")
+        return
+    
     # 기존 방식으로 표시
     latest = data.iloc[-1]
     prev_close = data.iloc[-2]['Close'] if len(data) > 1 else latest['Close']
@@ -1092,7 +1096,9 @@ def main():
         st.markdown("---")
         st.subheader("⚖️ 공정가치 분석")
         
-        fair_value_analysis = analyze_fair_value(data, latest['Close'])
+        # 현재 가격 정보 (데이터에서 가져오기)
+        current_price = data['Close'].iloc[-1] if not data.empty else 0
+        fair_value_analysis = analyze_fair_value(data, current_price)
         
         # 분석 결과 표시
         col_analysis1, col_analysis2, col_analysis3 = st.columns(3)
@@ -1297,7 +1303,7 @@ def main():
         st.markdown("---")
         st.subheader("🚦 매매 신호 분석")
         
-        trading_signals = analyze_trading_signals(data, latest['Close'])
+        trading_signals = analyze_trading_signals(data, current_price)
         
         if trading_signals['signals_available']:
             # 종합 신호 표시
@@ -1344,7 +1350,7 @@ def main():
                     st.metric(
                         "1차 목표가" if trading_signals['signal_strength'] > 0 else "1차 목표가(하락)",
                         "{:,.0f}원".format(target1),
-                        "{:+.1f}%".format((target1 / latest['Close'] - 1) * 100)
+                        "{:+.1f}%".format((target1 / current_price - 1) * 100)
                     )
                 
                 with col_price2:
@@ -1352,7 +1358,7 @@ def main():
                     st.metric(
                         "2차 목표가" if trading_signals['signal_strength'] > 0 else "2차 목표가(하락)",
                         "{:,.0f}원".format(target2),
-                        "{:+.1f}%".format((target2 / latest['Close'] - 1) * 100)
+                        "{:+.1f}%".format((target2 / current_price - 1) * 100)
                     )
                 
                 with col_price3:
@@ -1360,7 +1366,7 @@ def main():
                     st.metric(
                         "손절가",
                         "{:,.0f}원".format(stop_loss),
-                        "{:+.1f}%".format((stop_loss / latest['Close'] - 1) * 100)
+                        "{:+.1f}%".format((stop_loss / current_price - 1) * 100)
                     )
             
             # 상세 신호 분석
