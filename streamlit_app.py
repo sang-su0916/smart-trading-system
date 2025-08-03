@@ -106,7 +106,146 @@ def calculate_technical_indicators(data):
     data['MA_20'] = data['Close'].rolling(window=20).mean()
     data['MA_60'] = data['Close'].rolling(window=60).mean()
     
+    # 볼린저 밴드 계산
+    data['BB_Middle'] = data['Close'].rolling(window=20).mean()
+    bb_std = data['Close'].rolling(window=20).std()
+    data['BB_Upper'] = data['BB_Middle'] + (bb_std * 2)
+    data['BB_Lower'] = data['BB_Middle'] - (bb_std * 2)
+    
+    # MACD 계산
+    exp1 = data['Close'].ewm(span=12).mean()
+    exp2 = data['Close'].ewm(span=26).mean()
+    data['MACD'] = exp1 - exp2
+    data['MACD_Signal'] = data['MACD'].ewm(span=9).mean()
+    data['MACD_Histogram'] = data['MACD'] - data['MACD_Signal']
+    
+    # 스토캐스틱 계산
+    low_14 = data['Low'].rolling(window=14).min()
+    high_14 = data['High'].rolling(window=14).max()
+    data['Stoch_K'] = 100 * ((data['Close'] - low_14) / (high_14 - low_14))
+    data['Stoch_D'] = data['Stoch_K'].rolling(window=3).mean()
+    
     return data
+
+def analyze_fair_value(data, current_price):
+    """공정가치 분석"""
+    if data.empty or len(data) < 60:
+        return {
+            'fair_value_score': 50,
+            'recommendation': '중립',
+            'confidence': 50,
+            'reasons': ['데이터 부족으로 분석 불가'],
+            'details': {}
+        }
+    
+    latest = data.iloc[-1]
+    score = 0
+    reasons = []
+    details = {}
+    
+    # RSI 분석 (30점 만점)
+    rsi = latest['RSI']
+    if rsi < 30:
+        rsi_score = 25
+        reasons.append("RSI 과매도 상태 ({:.1f}) - 매수 신호".format(rsi))
+    elif rsi < 45:
+        rsi_score = 15
+        reasons.append("RSI 다소 과매도 ({:.1f})".format(rsi))
+    elif rsi > 70:
+        rsi_score = -15
+        reasons.append("RSI 과매수 상태 ({:.1f}) - 매도 신호".format(rsi))
+    elif rsi > 55:
+        rsi_score = -5
+        reasons.append("RSI 다소 과매수 ({:.1f})".format(rsi))
+    else:
+        rsi_score = 5
+        reasons.append("RSI 중립 구간 ({:.1f})".format(rsi))
+    
+    details['rsi'] = {'value': rsi, 'score': rsi_score}
+    
+    # 볼린저 밴드 분석 (25점 만점)
+    bb_position = ((current_price - latest['BB_Lower']) / (latest['BB_Upper'] - latest['BB_Lower'])) * 100
+    if bb_position < 20:
+        bb_score = 20
+        reasons.append("볼린저밴드 하단 근처 - 매수 신호")
+    elif bb_position < 40:
+        bb_score = 10
+        reasons.append("볼린저밴드 하단권")
+    elif bb_position > 80:
+        bb_score = -15
+        reasons.append("볼린저밴드 상단 근처 - 매도 신호")
+    elif bb_position > 60:
+        bb_score = -5
+        reasons.append("볼린저밴드 상단권")
+    else:
+        bb_score = 0
+        reasons.append("볼린저밴드 중간권")
+    
+    details['bollinger'] = {'position': bb_position, 'score': bb_score}
+    
+    # 이동평균선 분석 (25점 만점)
+    ma_score = 0
+    if current_price > latest['MA_5']:
+        ma_score += 8
+        reasons.append("5일선 상향돌파")
+    if current_price > latest['MA_20']:
+        ma_score += 10
+        reasons.append("20일선 상향돌파")
+    if current_price > latest['MA_60']:
+        ma_score += 7
+        reasons.append("60일선 상향돌파")
+    
+    if ma_score == 0:
+        reasons.append("주요 이동평균선 하락 배열")
+        ma_score = -15
+    
+    details['moving_average'] = {'score': ma_score}
+    
+    # MACD 분석 (20점 만점)
+    macd = latest['MACD']
+    macd_signal = latest['MACD_Signal']
+    if macd > macd_signal and macd > 0:
+        macd_score = 15
+        reasons.append("MACD 강한 상승 신호")
+    elif macd > macd_signal:
+        macd_score = 10
+        reasons.append("MACD 상승 신호")
+    elif macd < macd_signal and macd < 0:
+        macd_score = -10
+        reasons.append("MACD 하락 신호")
+    else:
+        macd_score = 0
+    
+    details['macd'] = {'score': macd_score}
+    
+    # 최종 점수 계산 (100점 만점)
+    total_score = rsi_score + bb_score + ma_score + macd_score
+    fair_value_score = max(0, min(100, 50 + total_score))
+    
+    # 추천 등급 결정
+    if fair_value_score >= 70:
+        recommendation = "매수"
+        confidence = min(90, fair_value_score + 10)
+    elif fair_value_score >= 55:
+        recommendation = "약매수"
+        confidence = min(80, fair_value_score + 5)
+    elif fair_value_score <= 30:
+        recommendation = "매도"
+        confidence = min(85, (50 - fair_value_score) + 60)
+    elif fair_value_score <= 45:
+        recommendation = "약매도"
+        confidence = min(75, (50 - fair_value_score) + 55)
+    else:
+        recommendation = "중립"
+        confidence = 60
+    
+    return {
+        'fair_value_score': fair_value_score,
+        'recommendation': recommendation,
+        'confidence': confidence,
+        'reasons': reasons,
+        'details': details
+    }
 
 def create_candlestick_chart(data, symbol):
     """캔들스틱 차트 생성"""
@@ -225,6 +364,118 @@ def main():
         chart = create_candlestick_chart(data, selected_name)
         if chart:
             st.plotly_chart(chart, use_container_width=True)
+        
+        # 공정가치 분석
+        st.markdown("---")
+        st.subheader("⚖️ 공정가치 분석")
+        
+        fair_value_analysis = analyze_fair_value(data, latest['Close'])
+        
+        # 분석 결과 표시
+        col_analysis1, col_analysis2, col_analysis3 = st.columns(3)
+        
+        with col_analysis1:
+            score = fair_value_analysis['fair_value_score']
+            if score >= 70:
+                score_color = "🟢"
+            elif score >= 55:
+                score_color = "🟡"
+            elif score <= 30:
+                score_color = "🔴"
+            elif score <= 45:
+                score_color = "🟠"
+            else:
+                score_color = "⚪"
+            
+            st.metric(
+                "종합 점수",
+                "{} {}/100".format(score_color, score),
+                help="기술적 지표 종합 점수 (높을수록 매수, 낮을수록 매도)"
+            )
+        
+        with col_analysis2:
+            recommendation = fair_value_analysis['recommendation']
+            confidence = fair_value_analysis['confidence']
+            
+            if recommendation == "매수":
+                rec_color = "🟢"
+            elif recommendation == "약매수":
+                rec_color = "🟡"
+            elif recommendation == "매도":
+                rec_color = "🔴"
+            elif recommendation == "약매도":
+                rec_color = "🟠"
+            else:
+                rec_color = "⚪"
+            
+            st.metric(
+                "투자 추천",
+                "{} {}".format(rec_color, recommendation),
+                "신뢰도: {:.1f}%".format(confidence)
+            )
+        
+        with col_analysis3:
+            # 볼린저밴드 위치 표시
+            bb_position = fair_value_analysis['details'].get('bollinger', {}).get('position', 50)
+            st.metric(
+                "볼린저밴드 위치",
+                "{:.1f}%".format(bb_position),
+                help="볼린저밴드 내 현재가 위치 (0%=하단, 100%=상단)"
+            )
+        
+        # 상세 분석 결과
+        with st.expander("📈 상세 분석 결과", expanded=True):
+            st.markdown("**🎯 주요 판단 근거:**")
+            for reason in fair_value_analysis['reasons']:
+                st.markdown("• {}".format(reason))
+            
+            st.markdown("---")
+            
+            # 지표별 세부 분석
+            col_detail1, col_detail2 = st.columns(2)
+            
+            with col_detail1:
+                st.markdown("**📊 기술적 지표:**")
+                
+                # RSI 분석
+                rsi_data = fair_value_analysis['details'].get('rsi', {})
+                if rsi_data:
+                    rsi_value = rsi_data.get('value', 0)
+                    st.markdown("**RSI ({:.1f}):** {}".format(
+                        rsi_value,
+                        "과매도" if rsi_value < 30 else "과매수" if rsi_value > 70 else "중립"
+                    ))
+                
+                # 볼린저밴드 분석
+                bb_data = fair_value_analysis['details'].get('bollinger', {})
+                if bb_data:
+                    bb_pos = bb_data.get('position', 50)
+                    st.markdown("**볼린저밴드:** {}".format(
+                        "하단권" if bb_pos < 30 else "상단권" if bb_pos > 70 else "중간권"
+                    ))
+            
+            with col_detail2:
+                st.markdown("**📈 추세 분석:**")
+                
+                # 이동평균선 분석
+                ma_score = fair_value_analysis['details'].get('moving_average', {}).get('score', 0)
+                if ma_score > 15:
+                    st.markdown("• 주요 이동평균선 상향 돌파")
+                elif ma_score > 0:
+                    st.markdown("• 일부 이동평균선 상향 돌파")
+                else:
+                    st.markdown("• 이동평균선 하락 배열")
+                
+                # MACD 분석
+                macd_score = fair_value_analysis['details'].get('macd', {}).get('score', 0)
+                if macd_score > 10:
+                    st.markdown("• MACD 강한 상승 신호")
+                elif macd_score > 0:
+                    st.markdown("• MACD 상승 신호")
+                elif macd_score < 0:
+                    st.markdown("• MACD 하락 신호")
+                else:
+                    st.markdown("• MACD 중립")
         
         # 기본 정보
         with st.expander("📖 기본 정보", expanded=False):
