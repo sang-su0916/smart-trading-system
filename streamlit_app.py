@@ -3005,7 +3005,8 @@ def main():
                 - **관망**: 신호가 명확하지 않을 때는 기다리기
                 """)
                 
-    else:
+    # 데이터가 비어있는 경우 처리
+    if data.empty:
         error_message = f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요."
         st.error(error_message)
     
