@@ -29,7 +29,7 @@ except ImportError:
 
 # 페이지 설정
 st.set_page_config(
-    page_title="🚀 Smart Trading Dashboard v4.0",
+    page_title="🚀 Sangsu Smart Trading Dashboard",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -37,7 +37,7 @@ st.set_page_config(
         'Get Help': 'https://github.com/sang-su0916/smart-trading-system',
         'Report a bug': 'https://github.com/sang-su0916/smart-trading-system/issues',
         'About': """
-        # Smart Trading Dashboard v4.0
+        # Sangsu Smart Trading Dashboard
         한국 주식 데이터를 지원하는 AI 기반 종합 투자 분석 도구
         
         **주요 기능:**
@@ -1065,7 +1065,7 @@ def create_candlestick_chart(data, symbol):
 
 def main():
     """메인 함수"""
-    st.title("🚀 Smart Trading Dashboard v4.0")
+    st.title("🚀 Sangsu Smart Trading Dashboard")
     st.caption("한국 주식 종합 분석 플랫폼")
     
     # 사용법 간단 안내
@@ -1543,7 +1543,7 @@ def main():
             # 기본 사용법
             with st.expander("🚀 대시보드 사용법", expanded=True):
                 st.markdown("""
-                **📈 Smart Trading Dashboard 활용 가이드**
+                **📈 Sangsu Smart Trading Dashboard 활용 가이드**
                 
                 1. **종목 선택**: 상단 검색창에서 관심 종목을 검색하고 선택하세요
                 2. **차트 분석**: 첫 번째 탭에서 가격 차트와 기술적 지표를 확인하세요
@@ -1711,7 +1711,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #888; font-size: 0.9em;'>"
-        "💼 Smart Trading Dashboard v4.0 | "
+        "💼 Sangsu Smart Trading Dashboard | "
         "🤖 AI 기반 종합 투자 분석 도구 | "
         "📈 여러분의 현명한 투자를 응원합니다"
         "</div>", 
