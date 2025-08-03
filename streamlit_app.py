@@ -159,10 +159,28 @@ class KISClient:
 
 # 페이지 설정
 st.set_page_config(
-    page_title="Smart Trading Dashboard",
+    page_title="🚀 Smart Trading Dashboard v4.0",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/sang-su0916/smart-trading-system',
+        'Report a bug': 'https://github.com/sang-su0916/smart-trading-system/issues',
+        'About': """
+        # Smart Trading Dashboard v4.0
+        실시간 한국 주식 데이터를 지원하는 AI 기반 종합 투자 분석 도구
+        
+        **주요 기능:**
+        - 🔴 실시간 데이터 (한국투자증권 API)
+        - 📋 실시간 호가창
+        - ⚖️ 공정가치 분석 
+        - 🏭 업종 비교 분석
+        - 🚦 매매 신호 시스템
+        - 📚 투자 교육 콘텐츠
+        
+        **⚠️ 교육용 도구입니다. 투자 결정은 신중히 하세요.**
+        """
+    }
 )
 
 def get_fallback_stocks():
