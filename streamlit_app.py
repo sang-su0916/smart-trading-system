@@ -1046,8 +1046,8 @@ def backtest_trading_signals(data, symbol, lookback_days=120):
             
         signal_strength = signals.get('signal_strength', 0)
         
-        # 매수/매도 신호가 충분히 강할 때만 거래
-        if abs(signal_strength) >= 25:  # 임계값 25 이상
+        # 매수/매도 신호가 충분히 강할 때만 거래 (고승률 최적화)
+        if abs(signal_strength) >= 35:  # 임계값 35 이상 (고승률 전략)
             trade_type = 'BUY' if signal_strength > 0 else 'SELL'
             entry_price = current_price
             target_price = signals.get('target_price_1', current_price)
@@ -1210,22 +1210,23 @@ def analyze_trading_signals(data, current_price):
     entry_signals = []
     exit_signals = []
     
-    # 1. RSI 신호 분석
+    # 1. RSI 신호 분석 (더 엄격한 기준)
     rsi = latest['RSI']
     rsi_prev = prev['RSI'] if not pd.isna(prev['RSI']) else rsi
     
-    if rsi < 30 and rsi_prev >= 30:
-        entry_signals.append("RSI 과매도권 진입 - 반등 신호")
-        signal_strength += 20
-    elif rsi > 70 and rsi_prev <= 70:
-        exit_signals.append("RSI 과매수권 진입 - 매도 신호")
-        signal_strength -= 15
-    elif rsi < 25:
-        entry_signals.append("RSI 극도 과매도 - 강한 매수 신호")
+    # 고승률 RSI 기준: 매우 극단적인 수치에서만 신호 생성
+    if rsi < 20 and rsi_prev >= 20:  # 매우 엄격한 기준
+        entry_signals.append("RSI 극도 과매도권 진입 - 반등 신호")
         signal_strength += 30
-    elif rsi > 75:
-        exit_signals.append("RSI 극도 과매수 - 강한 매도 신호")
+    elif rsi > 80 and rsi_prev <= 80:  # 매우 엄격한 기준
+        exit_signals.append("RSI 극도 과매수권 진입 - 매도 신호")
         signal_strength -= 25
+    elif rsi < 15:  # 매우 극단적인 경우만
+        entry_signals.append("RSI 극도 과매도 - 매우 강한 매수 신호")
+        signal_strength += 40
+    elif rsi > 85:  # 매우 극단적인 경우만
+        exit_signals.append("RSI 극도 과매수 - 매우 강한 매도 신호")
+        signal_strength -= 35
     
     # 2. 이동평균선 신호 분석
     ma5 = latest['MA_5']
@@ -1260,12 +1261,19 @@ def analyze_trading_signals(data, current_price):
     prev_price = prev['Close']
     prev_bb_position = ((prev_price - prev['BB_Lower']) / (prev['BB_Upper'] - prev['BB_Lower'])) * 100 if not pd.isna(prev['BB_Lower']) else bb_position
     
-    if bb_position < 20 and prev_bb_position >= 20:
-        entry_signals.append("볼린저밴드 하단 터치 - 반등 신호")
-        signal_strength += 20
-    elif bb_position > 80 and prev_bb_position <= 80:
-        exit_signals.append("볼린저밴드 상단 터치 - 조정 신호")
-        signal_strength -= 15
+    # 고승률 볼린저밴드 기준: 매우 극단적인 위치에서만 신호
+    if bb_position < 5 and prev_bb_position >= 5:  # 5% 이하에서만
+        entry_signals.append("볼린저밴드 극하단 터치 - 강한 반등 신호")
+        signal_strength += 30
+    elif bb_position > 95 and prev_bb_position <= 95:  # 95% 이상에서만
+        exit_signals.append("볼린저밴드 극상단 터치 - 강한 조정 신호")
+        signal_strength -= 25
+    elif bb_position < 2:  # 매우 극단적인 경우
+        entry_signals.append("볼린저밴드 최하단 - 매우 강한 반등 신호")
+        signal_strength += 35
+    elif bb_position > 98:  # 매우 극단적인 경우
+        exit_signals.append("볼린저밴드 최상단 - 매우 강한 조정 신호")
+        signal_strength -= 30
     
     # 볼린저밴드 스퀴즈 감지 (변동성 축소)
     bb_width = ((bb_upper - bb_lower) / bb_middle) * 100
@@ -1312,6 +1320,38 @@ def analyze_trading_signals(data, current_price):
             exit_signals.append("스토캐스틱 과매수권 데드크로스")
             signal_strength -= 15
     
+    # 6. 추가 보수적 필터 조건
+    additional_filters_passed = 0
+    
+    # 필터 1: 거래량 확인 (평균 거래량의 1.5배 이상) - 더 엄격
+    avg_volume = data['Volume'].rolling(window=20).mean().iloc[-1]
+    if latest['Volume'] > avg_volume * 1.5:
+        additional_filters_passed += 1
+        signals.append("거래량 충분한 증가 확인")
+    
+    # 필터 2: 가격이 20일 평균선 근처에 있는지 확인 (너무 극단적이지 않은지)
+    ma20_distance = abs((current_price - ma20) / ma20) * 100
+    if ma20_distance < 12:  # 20일선에서 12% 이내 (더 엄격)
+        additional_filters_passed += 1
+        signals.append("적정 가격 범위 내")
+    
+    # 필터 3: 최근 5일간 과도한 움직임이 없었는지 확인 (더 장기간)
+    recent_5day_change = abs((current_price - data['Close'].iloc[-6]) / data['Close'].iloc[-6]) * 100
+    if recent_5day_change < 8:  # 5일간 8% 이내 움직임 (더 엄격)
+        additional_filters_passed += 1
+        signals.append("안정적 가격 움직임")
+    
+    # 필터 4: ATR 기반 변동성 체크 (추가 필터)
+    atr_recent = data['Close'].rolling(window=14).std().iloc[-1] / current_price * 100
+    if atr_recent < 5:  # 최근 14일 변동성이 5% 미만
+        additional_filters_passed += 1
+        signals.append("변동성 안정화")
+    
+    # 고승률 필터: 4개 조건 중 최소 3개는 만족해야 함
+    if additional_filters_passed < 3:
+        signal_strength = signal_strength * 0.3  # 신호 강도 70% 감소
+        signals.append("⚠️ 고승률 조건 미달 - 신호 강도 대폭 감소")
+    
     # 6. 종합 신호 강도 계산 및 추천
     signal_strength = max(-100, min(100, signal_strength))  # -100 ~ 100 범위로 제한
     
@@ -1336,17 +1376,17 @@ def analyze_trading_signals(data, current_price):
         signal_color = "⚪"
         confidence = 50
     
-    # 7. 목표가 및 손절가 계산
+    # 7. 목표가 및 손절가 계산 (고승률 전략 - 더 보수적)
     volatility = data['Close'].rolling(window=20).std().iloc[-1] / current_price
     
     if signal_strength > 0:  # 매수 신호일 때
-        target_price_1 = current_price * (1 + volatility * 1.5)  # 1차 목표가
-        target_price_2 = current_price * (1 + volatility * 2.5)  # 2차 목표가
-        stop_loss = current_price * (1 - volatility * 1.0)  # 손절가
+        target_price_1 = current_price * (1 + volatility * 0.5)  # 1차 목표가 (매우 빠른 익절)
+        target_price_2 = current_price * (1 + volatility * 1.0)  # 2차 목표가 (보수적)
+        stop_loss = current_price * (1 - volatility * 0.5)  # 손절가 (매우 빠른 손절)
     else:  # 매도 신호일 때
-        target_price_1 = current_price * (1 - volatility * 1.5)  # 1차 목표가
-        target_price_2 = current_price * (1 - volatility * 2.5)  # 2차 목표가
-        stop_loss = current_price * (1 + volatility * 1.0)  # 손절가
+        target_price_1 = current_price * (1 - volatility * 0.5)  # 1차 목표가 (매우 빠른 익절)
+        target_price_2 = current_price * (1 - volatility * 1.0)  # 2차 목표가 (보수적)
+        stop_loss = current_price * (1 + volatility * 0.5)  # 손절가 (매우 빠른 손절)
     
     return {
         'signals_available': True,
