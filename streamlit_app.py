@@ -1683,10 +1683,21 @@ def main():
                     )
                 
                 with col_signal4:
+                    volatility = trading_signals.get('volatility', 0)
+                    if volatility > 5:
+                        risk_display = "높음"
+                        risk_color = "🔴"
+                    elif volatility > 3:
+                        risk_display = "보통"
+                        risk_color = "🟡"
+                    else:
+                        risk_display = "낮음"
+                        risk_color = "🟢"
+                    
                     st.metric(
                         "위험도",
-                        trading_signals['risk_level'],
-                        help="현재 시장 상황의 위험도"
+                        "{} {}".format(risk_color, risk_display),
+                        help="20일 변동성 기준 위험도 ({:.1f}%)".format(volatility)
                     )
                 
                 # 목표가 및 손절가 표시
