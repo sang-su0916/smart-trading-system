@@ -3003,9 +3003,9 @@ def main():
                 - **매도**: 목표가 도달 or 손절가 도달 or 여러 지표 매도 신호
                 - **관망**: 신호가 명확하지 않을 때는 기다리기
                 """)
-        
-        else:
-            st.error(f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요.")
+                
+    else:
+        st.error(f"{selected_name} 데이터를 불러올 수 없습니다. 다른 종목을 선택해 주세요.")
     
     # 푸터
     st.markdown("---")
