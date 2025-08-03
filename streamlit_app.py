@@ -247,6 +247,183 @@ def analyze_fair_value(data, current_price):
         'details': details
     }
 
+def get_industry_peers(symbol):
+    """업종별 동종 종목 리스트 반환 (간소화된 버전)"""
+    # 주요 업종별 대표 종목들
+    industry_map = {
+        # 전자/반도체
+        '005930': {'industry': '반도체', 'peers': ['000660', '035420', '373220']},
+        '000660': {'industry': '반도체', 'peers': ['005930', '035420', '373220']}, 
+        '035420': {'industry': 'IT서비스', 'peers': ['035720', '005930', '000660']},
+        '035720': {'industry': 'IT서비스', 'peers': ['035420', '005930', '000660']},
+        
+        # 에너지/화학
+        '373220': {'industry': '전기전자', 'peers': ['051910', '005490', '005930']},
+        '051910': {'industry': '화학', 'peers': ['373220', '005490', '009830']},
+        
+        # 자동차
+        '005380': {'industry': '자동차', 'peers': ['000270', '012330', '161390']},
+        '000270': {'industry': '자동차', 'peers': ['005380', '012330', '161390']},
+        
+        # 바이오/제약
+        '207940': {'industry': '바이오', 'peers': ['068270', '326030', '145020']},
+        
+        # 철강/소재
+        '005490': {'industry': '철강', 'peers': ['051910', '009830', '010130']},
+    }
+    
+    # 종목코드에서 .KS 제거
+    clean_symbol = symbol.replace('.KS', '').replace('.KQ', '')
+    
+    if clean_symbol in industry_map:
+        return industry_map[clean_symbol]
+    else:
+        # 기본 비교군 (대형주)
+        return {
+            'industry': '기타', 
+            'peers': ['005930', '000660', '035420', '035720']
+        }
+
+def analyze_industry_comparison(symbol, current_data):
+    """업종 비교 분석"""
+    if current_data.empty or len(current_data) < 20:
+        return {
+            'comparison_available': False,
+            'industry': '정보 없음',
+            'message': '데이터 부족으로 업종 비교 불가'
+        }
+    
+    # 업종 정보 가져오기
+    industry_info = get_industry_peers(symbol)
+    industry = industry_info['industry']
+    peer_codes = industry_info['peers']
+    
+    if len(peer_codes) < 2:
+        return {
+            'comparison_available': False,
+            'industry': industry,
+            'message': '비교 가능한 동종업계 종목 부족'
+        }
+    
+    # 현재 종목 지표
+    current_latest = current_data.iloc[-1]
+    current_metrics = {
+        'rsi': current_latest['RSI'] if not pd.isna(current_latest['RSI']) else 50,
+        'ma20_ratio': current_latest['Close'] / current_latest['MA_20'] if not pd.isna(current_latest['MA_20']) else 1,
+        'bb_position': ((current_latest['Close'] - current_latest['BB_Lower']) / 
+                       (current_latest['BB_Upper'] - current_latest['BB_Lower'])) * 100 
+                       if not pd.isna(current_latest['BB_Lower']) else 50
+    }
+    
+    # 동종업계 평균 계산
+    peer_metrics = []
+    successful_peers = []
+    
+    for peer_code in peer_codes:
+        try:
+            # KS/KQ 구분
+            if peer_code in ['005930', '000660', '035420', '035720', '005380', '000270', '051910', '207940', '005490']:
+                peer_symbol = "{}.KS".format(peer_code)
+            else:
+                peer_symbol = "{}.KQ".format(peer_code)
+            
+            peer_data = get_stock_data(peer_symbol, '3mo')
+            if not peer_data.empty and len(peer_data) >= 20:
+                peer_data = calculate_technical_indicators(peer_data)
+                peer_latest = peer_data.iloc[-1]
+                
+                peer_metric = {
+                    'rsi': peer_latest['RSI'] if not pd.isna(peer_latest['RSI']) else 50,
+                    'ma20_ratio': peer_latest['Close'] / peer_latest['MA_20'] if not pd.isna(peer_latest['MA_20']) else 1,
+                    'bb_position': ((peer_latest['Close'] - peer_latest['BB_Lower']) / 
+                                   (peer_latest['BB_Upper'] - peer_latest['BB_Lower'])) * 100 
+                                   if not pd.isna(peer_latest['BB_Lower']) else 50
+                }
+                peer_metrics.append(peer_metric)
+                successful_peers.append(peer_code)
+        except:
+            continue
+    
+    if len(peer_metrics) < 2:
+        return {
+            'comparison_available': False,
+            'industry': industry,
+            'message': '동종업계 데이터 수집 실패'
+        }
+    
+    # 업종 평균 계산
+    industry_avg = {
+        'rsi': sum(p['rsi'] for p in peer_metrics) / len(peer_metrics),
+        'ma20_ratio': sum(p['ma20_ratio'] for p in peer_metrics) / len(peer_metrics),
+        'bb_position': sum(p['bb_position'] for p in peer_metrics) / len(peer_metrics)
+    }
+    
+    # 비교 분석
+    comparison_analysis = []
+    rsi_diff = current_metrics['rsi'] - industry_avg['rsi']
+    if abs(rsi_diff) > 5:
+        if rsi_diff < 0:
+            comparison_analysis.append("RSI가 업종 평균보다 {:.1f}p 낮음 (상대적 매수 우위)".format(abs(rsi_diff)))
+        else:
+            comparison_analysis.append("RSI가 업종 평균보다 {:.1f}p 높음 (상대적 과매수)".format(rsi_diff))
+    
+    ma20_diff = ((current_metrics['ma20_ratio'] - 1) * 100) - ((industry_avg['ma20_ratio'] - 1) * 100)
+    if abs(ma20_diff) > 1:
+        if ma20_diff > 0:
+            comparison_analysis.append("20일선 대비 위치가 업종 평균보다 {:.1f}%p 높음".format(ma20_diff))
+        else:
+            comparison_analysis.append("20일선 대비 위치가 업종 평균보다 {:.1f}%p 낮음".format(abs(ma20_diff)))
+    
+    bb_diff = current_metrics['bb_position'] - industry_avg['bb_position']
+    if abs(bb_diff) > 10:
+        if bb_diff < 0:
+            comparison_analysis.append("볼린저밴드 위치가 업종 평균보다 낮음 (상대적 저평가)")
+        else:
+            comparison_analysis.append("볼린저밴드 위치가 업종 평균보다 높음 (상대적 고평가)")
+    
+    # 종합 점수 계산
+    comparison_score = 50
+    if rsi_diff < -5:
+        comparison_score += 15
+    elif rsi_diff > 10:
+        comparison_score -= 10
+        
+    if ma20_diff > 2:
+        comparison_score += 10
+    elif ma20_diff < -2:
+        comparison_score -= 10
+        
+    if bb_diff < -10:
+        comparison_score += 10
+    elif bb_diff > 15:
+        comparison_score -= 10
+    
+    comparison_score = max(0, min(100, comparison_score))
+    
+    # 상대적 추천
+    if comparison_score >= 70:
+        relative_recommendation = "업종 내 강력 매수"
+    elif comparison_score >= 55:
+        relative_recommendation = "업종 내 매수"
+    elif comparison_score <= 30:
+        relative_recommendation = "업종 내 매도"
+    elif comparison_score <= 45:
+        relative_recommendation = "업종 내 약매도"
+    else:
+        relative_recommendation = "업종 평균 수준"
+    
+    return {
+        'comparison_available': True,
+        'industry': industry,
+        'peer_count': len(successful_peers),
+        'peer_codes': successful_peers,
+        'current_metrics': current_metrics,
+        'industry_avg': industry_avg,
+        'comparison_score': comparison_score,
+        'relative_recommendation': relative_recommendation,
+        'comparison_analysis': comparison_analysis
+    }
+
 def create_candlestick_chart(data, symbol):
     """캔들스틱 차트 생성"""
     if data.empty:
@@ -476,6 +653,93 @@ def main():
                     st.markdown("• MACD 하락 신호")
                 else:
                     st.markdown("• MACD 중립")
+        
+        # 업종 비교 분석
+        st.markdown("---")
+        st.subheader("🏭 업종 비교 분석")
+        
+        industry_analysis = analyze_industry_comparison(selected_symbol, data)
+        
+        if industry_analysis['comparison_available']:
+            # 업종 정보 표시
+            col_industry1, col_industry2, col_industry3 = st.columns(3)
+            
+            with col_industry1:
+                st.metric(
+                    "업종",
+                    industry_analysis['industry'],
+                    help="현재 종목이 속한 업종 분류"
+                )
+            
+            with col_industry2:
+                comparison_score = industry_analysis['comparison_score']
+                if comparison_score >= 70:
+                    score_color = "🟢"
+                elif comparison_score >= 55:
+                    score_color = "🟡"
+                elif comparison_score <= 30:
+                    score_color = "🔴"
+                elif comparison_score <= 45:
+                    score_color = "🟠"
+                else:
+                    score_color = "⚪"
+                
+                st.metric(
+                    "업종 내 상대 점수",
+                    "{} {}/100".format(score_color, comparison_score),
+                    help="동종업계 대비 상대적 매력도 (높을수록 업종 내 우위)"
+                )
+            
+            with col_industry3:
+                relative_rec = industry_analysis['relative_recommendation']
+                if "강력 매수" in relative_rec:
+                    rec_color = "🟢"
+                elif "매수" in relative_rec:
+                    rec_color = "🟡"
+                elif "매도" in relative_rec:
+                    rec_color = "🔴"
+                else:
+                    rec_color = "⚪"
+                
+                st.metric(
+                    "업종 내 추천",
+                    "{} {}".format(rec_color, relative_rec),
+                    help="동종업계 대비 상대적 투자 추천"
+                )
+            
+            # 상세 비교 분석
+            with st.expander("📊 업종 비교 상세 분석", expanded=True):
+                st.markdown("**🏭 업종 비교 현황 ({} 업종, {} 종목 비교)**".format(
+                    industry_analysis['industry'], 
+                    industry_analysis['peer_count']
+                ))
+                
+                if industry_analysis['comparison_analysis']:
+                    for analysis in industry_analysis['comparison_analysis']:
+                        st.markdown("• {}".format(analysis))
+                
+                st.markdown("---")
+                
+                # 지표별 비교 테이블
+                col_compare1, col_compare2 = st.columns(2)
+                
+                with col_compare1:
+                    st.markdown("**📈 현재 종목 지표:**")
+                    current = industry_analysis['current_metrics']
+                    st.markdown("• **RSI**: {:.1f}".format(current['rsi']))
+                    st.markdown("• **20일선 대비**: {:.1f}%".format((current['ma20_ratio'] - 1) * 100))
+                    st.markdown("• **볼린저밴드 위치**: {:.1f}%".format(current['bb_position']))
+                
+                with col_compare2:
+                    st.markdown("**🏭 업종 평균 지표:**")
+                    industry_avg = industry_analysis['industry_avg']
+                    st.markdown("• **RSI**: {:.1f}".format(industry_avg['rsi']))
+                    st.markdown("• **20일선 대비**: {:.1f}%".format((industry_avg['ma20_ratio'] - 1) * 100))
+                    st.markdown("• **볼린저밴드 위치**: {:.1f}%".format(industry_avg['bb_position']))
+        
+        else:
+            st.info("📊 업종 비교 분석: {}".format(industry_analysis['message']))
+            st.markdown("**참고:** 충분한 데이터가 확보되면 동종업계 대비 상대적 위치를 분석하여 제공합니다.")
         
         # 기본 정보
         with st.expander("📖 기본 정보", expanded=False):
