@@ -424,6 +424,174 @@ def analyze_industry_comparison(symbol, current_data):
         'comparison_analysis': comparison_analysis
     }
 
+def analyze_trading_signals(data, current_price):
+    """매매 신호 분석"""
+    if data.empty or len(data) < 60:
+        return {
+            'signals_available': False,
+            'message': '데이터 부족으로 매매 신호 분석 불가'
+        }
+    
+    latest = data.iloc[-1]
+    prev = data.iloc[-2] if len(data) > 1 else latest
+    signals = []
+    signal_strength = 0
+    entry_signals = []
+    exit_signals = []
+    
+    # 1. RSI 신호 분석
+    rsi = latest['RSI']
+    rsi_prev = prev['RSI'] if not pd.isna(prev['RSI']) else rsi
+    
+    if rsi < 30 and rsi_prev >= 30:
+        entry_signals.append("RSI 과매도권 진입 - 반등 신호")
+        signal_strength += 20
+    elif rsi > 70 and rsi_prev <= 70:
+        exit_signals.append("RSI 과매수권 진입 - 매도 신호")
+        signal_strength -= 15
+    elif rsi < 25:
+        entry_signals.append("RSI 극도 과매도 - 강한 매수 신호")
+        signal_strength += 30
+    elif rsi > 75:
+        exit_signals.append("RSI 극도 과매수 - 강한 매도 신호")
+        signal_strength -= 25
+    
+    # 2. 이동평균선 신호 분석
+    ma5 = latest['MA_5']
+    ma20 = latest['MA_20']
+    ma60 = latest['MA_60']
+    
+    ma5_prev = prev['MA_5'] if not pd.isna(prev['MA_5']) else ma5
+    ma20_prev = prev['MA_20'] if not pd.isna(prev['MA_20']) else ma20
+    
+    # 골든크로스/데드크로스 감지
+    if ma5 > ma20 and ma5_prev <= ma20_prev:
+        entry_signals.append("골든크로스 - 5일선이 20일선 상향돌파")
+        signal_strength += 25
+    elif ma5 < ma20 and ma5_prev >= ma20_prev:
+        exit_signals.append("데드크로스 - 5일선이 20일선 하향돌파")
+        signal_strength -= 20
+    
+    # 정배열/역배열 확인
+    if ma5 > ma20 > ma60:
+        signals.append("이동평균선 정배열 - 상승 추세")
+        signal_strength += 15
+    elif ma5 < ma20 < ma60:
+        signals.append("이동평균선 역배열 - 하락 추세")
+        signal_strength -= 15
+    
+    # 3. 볼린저밴드 신호 분석
+    bb_upper = latest['BB_Upper']
+    bb_lower = latest['BB_Lower']
+    bb_middle = latest['BB_Middle']
+    
+    bb_position = ((current_price - bb_lower) / (bb_upper - bb_lower)) * 100
+    prev_price = prev['Close']
+    prev_bb_position = ((prev_price - prev['BB_Lower']) / (prev['BB_Upper'] - prev['BB_Lower'])) * 100 if not pd.isna(prev['BB_Lower']) else bb_position
+    
+    if bb_position < 20 and prev_bb_position >= 20:
+        entry_signals.append("볼린저밴드 하단 터치 - 반등 신호")
+        signal_strength += 20
+    elif bb_position > 80 and prev_bb_position <= 80:
+        exit_signals.append("볼린저밴드 상단 터치 - 조정 신호")
+        signal_strength -= 15
+    
+    # 볼린저밴드 스퀴즈 감지 (변동성 축소)
+    bb_width = ((bb_upper - bb_lower) / bb_middle) * 100
+    if bb_width < 10:  # 볼린저밴드 폭이 좁을 때
+        signals.append("볼린저밴드 스퀴즈 - 큰 변동성 임박")
+    
+    # 4. MACD 신호 분석
+    macd = latest['MACD']
+    macd_signal = latest['MACD_Signal']
+    macd_hist = latest['MACD_Histogram']
+    
+    macd_prev = prev['MACD'] if not pd.isna(prev['MACD']) else macd
+    macd_signal_prev = prev['MACD_Signal'] if not pd.isna(prev['MACD_Signal']) else macd_signal
+    macd_hist_prev = prev['MACD_Histogram'] if not pd.isna(prev['MACD_Histogram']) else macd_hist
+    
+    # MACD 크로스 신호
+    if macd > macd_signal and macd_prev <= macd_signal_prev:
+        entry_signals.append("MACD 골든크로스 - 상승 신호")
+        signal_strength += 20
+    elif macd < macd_signal and macd_prev >= macd_signal_prev:
+        exit_signals.append("MACD 데드크로스 - 하락 신호")
+        signal_strength -= 20
+    
+    # MACD 히스토그램 분석
+    if macd_hist > 0 and macd_hist_prev <= 0:
+        signals.append("MACD 히스토그램 양전환 - 모멘텀 증가")
+        signal_strength += 10
+    elif macd_hist < 0 and macd_hist_prev >= 0:
+        signals.append("MACD 히스토그램 음전환 - 모멘텀 감소")
+        signal_strength -= 10
+    
+    # 5. 스토캐스틱 신호 분석
+    stoch_k = latest['Stoch_K']
+    stoch_d = latest['Stoch_D']
+    stoch_k_prev = prev['Stoch_K'] if not pd.isna(prev['Stoch_K']) else stoch_k
+    stoch_d_prev = prev['Stoch_D'] if not pd.isna(prev['Stoch_D']) else stoch_d
+    
+    if stoch_k < 20 and stoch_d < 20:
+        if stoch_k > stoch_d and stoch_k_prev <= stoch_d_prev:
+            entry_signals.append("스토캐스틱 과매도권 골든크로스")
+            signal_strength += 15
+    elif stoch_k > 80 and stoch_d > 80:
+        if stoch_k < stoch_d and stoch_k_prev >= stoch_d_prev:
+            exit_signals.append("스토캐스틱 과매수권 데드크로스")
+            signal_strength -= 15
+    
+    # 6. 종합 신호 강도 계산 및 추천
+    signal_strength = max(-100, min(100, signal_strength))  # -100 ~ 100 범위로 제한
+    
+    if signal_strength >= 50:
+        overall_signal = "강한 매수"
+        signal_color = "🟢"
+        confidence = min(95, 70 + (signal_strength - 50) * 0.5)
+    elif signal_strength >= 25:
+        overall_signal = "매수"
+        signal_color = "🟡"
+        confidence = min(85, 60 + (signal_strength - 25) * 0.4)
+    elif signal_strength <= -50:
+        overall_signal = "강한 매도"
+        signal_color = "🔴"
+        confidence = min(90, 70 + abs(signal_strength + 50) * 0.4)
+    elif signal_strength <= -25:
+        overall_signal = "매도"
+        signal_color = "🟠"
+        confidence = min(80, 60 + abs(signal_strength + 25) * 0.4)
+    else:
+        overall_signal = "관망"
+        signal_color = "⚪"
+        confidence = 50
+    
+    # 7. 목표가 및 손절가 계산
+    volatility = data['Close'].rolling(window=20).std().iloc[-1] / current_price
+    
+    if signal_strength > 0:  # 매수 신호일 때
+        target_price_1 = current_price * (1 + volatility * 1.5)  # 1차 목표가
+        target_price_2 = current_price * (1 + volatility * 2.5)  # 2차 목표가
+        stop_loss = current_price * (1 - volatility * 1.0)  # 손절가
+    else:  # 매도 신호일 때
+        target_price_1 = current_price * (1 - volatility * 1.5)  # 1차 목표가
+        target_price_2 = current_price * (1 - volatility * 2.5)  # 2차 목표가
+        stop_loss = current_price * (1 + volatility * 1.0)  # 손절가
+    
+    return {
+        'signals_available': True,
+        'overall_signal': overall_signal,
+        'signal_color': signal_color,
+        'signal_strength': signal_strength,
+        'confidence': confidence,
+        'entry_signals': entry_signals,
+        'exit_signals': exit_signals,
+        'general_signals': signals,
+        'target_price_1': target_price_1,
+        'target_price_2': target_price_2,
+        'stop_loss': stop_loss,
+        'volatility': volatility * 100
+    }
+
 def create_candlestick_chart(data, symbol):
     """캔들스틱 차트 생성"""
     if data.empty:
@@ -741,6 +909,127 @@ def main():
             st.info("📊 업종 비교 분석: {}".format(industry_analysis['message']))
             st.markdown("**참고:** 충분한 데이터가 확보되면 동종업계 대비 상대적 위치를 분석하여 제공합니다.")
         
+        # 매매 신호 분석
+        st.markdown("---")
+        st.subheader("🚦 매매 신호 분석")
+        
+        trading_signals = analyze_trading_signals(data, latest['Close'])
+        
+        if trading_signals['signals_available']:
+            # 종합 신호 표시
+            col_signal1, col_signal2, col_signal3, col_signal4 = st.columns(4)
+            
+            with col_signal1:
+                st.metric(
+                    "종합 신호",
+                    "{} {}".format(trading_signals['signal_color'], trading_signals['overall_signal']),
+                    help="기술적 지표 종합 매매 신호"
+                )
+            
+            with col_signal2:
+                signal_strength = trading_signals['signal_strength']
+                strength_display = "+" + str(signal_strength) if signal_strength > 0 else str(signal_strength)
+                st.metric(
+                    "신호 강도",
+                    "{}/100".format(strength_display),
+                    help="매매 신호 강도 (-100~+100, 양수=매수, 음수=매도)"
+                )
+            
+            with col_signal3:
+                confidence = trading_signals['confidence']
+                st.metric(
+                    "신뢰도",
+                    "{:.1f}%".format(confidence),
+                    help="신호 분석 신뢰도"
+                )
+            
+            with col_signal4:
+                volatility = trading_signals['volatility']
+                st.metric(
+                    "변동성",
+                    "{:.1f}%".format(volatility),
+                    help="20일 기준 가격 변동성"
+                )
+            
+            # 목표가 및 손절가 표시
+            if trading_signals['signal_strength'] != 0:
+                col_price1, col_price2, col_price3 = st.columns(3)
+                
+                with col_price1:
+                    target1 = trading_signals['target_price_1']
+                    st.metric(
+                        "1차 목표가" if trading_signals['signal_strength'] > 0 else "1차 목표가(하락)",
+                        "{:,.0f}원".format(target1),
+                        "{:+.1f}%".format((target1 / latest['Close'] - 1) * 100)
+                    )
+                
+                with col_price2:
+                    target2 = trading_signals['target_price_2']
+                    st.metric(
+                        "2차 목표가" if trading_signals['signal_strength'] > 0 else "2차 목표가(하락)",
+                        "{:,.0f}원".format(target2),
+                        "{:+.1f}%".format((target2 / latest['Close'] - 1) * 100)
+                    )
+                
+                with col_price3:
+                    stop_loss = trading_signals['stop_loss']
+                    st.metric(
+                        "손절가",
+                        "{:,.0f}원".format(stop_loss),
+                        "{:+.1f}%".format((stop_loss / latest['Close'] - 1) * 100)
+                    )
+            
+            # 상세 신호 분석
+            with st.expander("🔍 상세 매매 신호 분석", expanded=True):
+                col_signals1, col_signals2 = st.columns(2)
+                
+                with col_signals1:
+                    if trading_signals['entry_signals']:
+                        st.markdown("**🟢 매수 신호:**")
+                        for signal in trading_signals['entry_signals']:
+                            st.markdown("• {}".format(signal))
+                    
+                    if trading_signals['general_signals']:
+                        st.markdown("**📊 추세 분석:**")
+                        for signal in trading_signals['general_signals']:
+                            st.markdown("• {}".format(signal))
+                
+                with col_signals2:
+                    if trading_signals['exit_signals']:
+                        st.markdown("**🔴 매도 신호:**")
+                        for signal in trading_signals['exit_signals']:
+                            st.markdown("• {}".format(signal))
+                
+                # 매매 가이드라인
+                st.markdown("---")
+                st.markdown("**📋 매매 가이드라인:**")
+                
+                if trading_signals['signal_strength'] >= 25:
+                    st.markdown("""
+                    **🟢 매수 포지션 권장**
+                    • 분할 매수 전략 고려 (2-3회 분할)
+                    • 1차 목표가 도달 시 일부 수익 실현
+                    • 손절가 설정으로 리스크 관리
+                    """)
+                elif trading_signals['signal_strength'] <= -25:
+                    st.markdown("""
+                    **🔴 매도 포지션 권장**
+                    • 보유 종목 있다면 분할 매도 고려
+                    • 반등 시 추가 매도 기회 활용
+                    • 손절가 상향 돌파 시 추가 하락 주의
+                    """)
+                else:
+                    st.markdown("""
+                    **⚪ 관망 권장**
+                    • 명확한 신호 나타날 때까지 대기
+                    • 지지/저항선 돌파 여부 관찰
+                    • 거래량 증가와 함께 신호 확인
+                    """)
+        
+        else:
+            st.info("🚦 매매 신호 분석: {}".format(trading_signals['message']))
+            st.markdown("**참고:** 충분한 데이터가 확보되면 기술적 지표 기반 매매 신호를 제공합니다.")
+        
         # 기본 정보
         with st.expander("📖 기본 정보", expanded=False):
             st.markdown("""
@@ -752,11 +1041,34 @@ def main():
             **🔄 이동평균선 (MA):**
             - **MA5**: 5일 평균가격
             - **MA20**: 20일 평균가격
+            - **골든크로스**: 단기선이 장기선을 상향돌파 (매수신호)
+            - **데드크로스**: 단기선이 장기선을 하향돌파 (매도신호)
             
-            **📊 RSI:**
-            - 0~100 사이 값
-            - 70 이상: 과매수
-            - 30 이하: 과매도
+            **📊 RSI (상대강도지수):**
+            - 0~100 사이 값으로 과매수/과매도 측정
+            - 70 이상: 과매수 (매도 고려)
+            - 30 이하: 과매도 (매수 고려)
+            
+            **📈 볼린저밴드:**
+            - 중심선(20일 이동평균) ± 2표준편차
+            - 하단 터치: 매수 신호 가능성
+            - 상단 터치: 매도 신호 가능성
+            - 밴드 폭 축소: 큰 변동성 임박
+            
+            **⚡ MACD:**
+            - 단기/장기 이동평균의 차이로 추세 변화 포착
+            - MACD선 > 시그널선: 상승 신호
+            - MACD선 < 시그널선: 하락 신호
+            
+            **🎯 스토캐스틱:**
+            - 일정기간 고가/저가 대비 현재가 위치
+            - 80 이상: 과매수권
+            - 20 이하: 과매도권
+            
+            **🚦 매매 신호 해석:**
+            - **신호 강도**: -100(강한 매도) ~ +100(강한 매수)
+            - **종합 판단**: 여러 지표를 종합하여 최종 신호 결정
+            - **목표가/손절가**: 변동성 기반 리스크 관리 가격
             """)
     
     # 데이터가 비어있는 경우 처리
