@@ -25,65 +25,7 @@ try:
 except ImportError:
     PYKRX_AVAILABLE = False
 
-# Placeholder for removed API client
-        }
-        
-        try:
-            response = requests.get(url, headers=headers, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                output = data['output']
-                return {
-                    'symbol': symbol,
-                    'current_price': int(output['stck_prpr']),
-                    'change': int(output['prdy_vrss']),
-                    'change_rate': float(output['prdy_ctrt']),
-                    'volume': int(output['acml_vol']),
-                    'high': int(output['stck_hgpr']),
-                    'low': int(output['stck_lwpr']),
-                    'open': int(output['stck_oprc']),
-                    'market_cap': int(output.get('mrkv', 0))
-                }
-            else:
-                raise Exception(f"API 오류: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"네트워크 오류: {str(e)}")
-    
-    @st.cache_data(ttl=30)  # 30초 캐시
-    def get_orderbook(_self, symbol):
-        """실시간 호가창"""
-        url = f"{_self.base_url}/uapi/domestic-stock/v1/quotations/inquire-asking-price-exp-ccn"
-        headers = _self.get_headers("FHKST01010200")
-        
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": symbol
-        }
-        
-        try:
-            response = requests.get(url, headers=headers, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                output = data['output1']
-                
-                # 매도호가 (10단계)
-                ask_prices = [int(output[f'askp{i}']) for i in range(1, 11) if output[f'askp{i}']]
-                ask_volumes = [int(output[f'askp_rsqn{i}']) for i in range(1, 11) if output[f'askp_rsqn{i}']]
-                
-                # 매수호가 (10단계)
-                bid_prices = [int(output[f'bidp{i}']) for i in range(1, 11) if output[f'bidp{i}']]
-                bid_volumes = [int(output[f'bidp_rsqn{i}']) for i in range(1, 11) if output[f'bidp_rsqn{i}']]
-                
-                return {
-                    'ask_prices': ask_prices,
-                    'ask_volumes': ask_volumes,
-                    'bid_prices': bid_prices,
-                    'bid_volumes': bid_volumes
-                }
-            else:
-                raise Exception(f"API 오류: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"네트워크 오류: {str(e)}")
+# API 클라이언트는 별도 관리
 
 # 페이지 설정
 st.set_page_config(
@@ -374,35 +316,12 @@ def search_stocks(search_term):
 
 # KIS API 통합 함수들
 def get_stock_data_with_kis(symbol):
-    """KIS API를 활용한 실시간 주가 데이터 조회"""
-    try:
-        # 종목코드 변환 (.KS 제거)
-        kis_symbol = symbol.replace('.KS', '') if symbol.endswith('.KS') else symbol
-        
-        kis = KISClient()
-        
-        # 실시간 현재가 조회
-        current_data = kis.get_current_price(kis_symbol)
-        
-        # 호가창 데이터
-        try:
-            orderbook = kis.get_orderbook(kis_symbol)
-        except:
-            orderbook = None
-        
-        return {
-            'current_data': current_data,
-            'orderbook': orderbook,
-            'data_source': 'KIS API (실시간)',
-            'success': True
-        }
-        
-    except Exception as e:
-        return {
-            'error': str(e),
-            'data_source': 'KIS API 실패',
-            'success': False
-        }
+    """KIS API 기능 (현재 비활성화)"""
+    return {
+        'error': 'KIS API 기능 비활성화됨',
+        'data_source': '데이터 소스 없음',
+        'success': False
+    }
 
 def get_stock_data_yfinance(symbol, period="1y"):
     """기존 yfinance를 사용한 데이터 조회"""
