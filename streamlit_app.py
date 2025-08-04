@@ -510,6 +510,80 @@ def get_stock_data(symbol, period="1y"):
     result = get_stock_data_enhanced(symbol, period)
     return result.get('chart_data', pd.DataFrame())
 
+def classify_stock_type(data, symbol):
+    """종목 특성 분류 시스템"""
+    if data.empty or len(data) < 60:
+        return {
+            'category': 'unknown',
+            'name': '분류 불가',
+            'volatility': 0,
+            'signal_threshold': 30,
+            'description': '데이터 부족으로 분류 불가'
+        }
+    
+    # 변동성 계산 (최근 60일 기준)
+    recent_data = data.tail(60)
+    returns = recent_data['Close'].pct_change().dropna()
+    volatility = returns.std() * np.sqrt(252) * 100  # 연환산 변동성(%)
+    
+    # 평균 거래량 (최근 20일)
+    avg_volume = recent_data['Volume'].tail(20).mean()
+    
+    # 가격 범위 (최근 60일)
+    price_range = (recent_data['High'].max() - recent_data['Low'].min()) / recent_data['Close'].mean() * 100
+    
+    # RSI 변동폭 (얼마나 극단값에 도달하는지)
+    if 'RSI' in recent_data.columns:
+        rsi_extreme_count = len(recent_data[(recent_data['RSI'] < 25) | (recent_data['RSI'] > 75)])
+        rsi_extreme_ratio = rsi_extreme_count / len(recent_data)
+    else:
+        rsi_extreme_ratio = 0
+    
+    # 종목 분류 로직
+    if volatility >= 45 and price_range >= 35:
+        # 극고변동성 (테슬라 타입)
+        category = 'ultra_high_volatility'
+        name = '극변동성 투기주'
+        signal_threshold = 40  # 더 보수적
+        target_winrate = 40
+        description = '매우 높은 위험, 신중한 접근 필요'
+        
+    elif volatility >= 30 and rsi_extreme_ratio >= 0.1:
+        # 고변동성 성장주 (엔비디아, 메타 타입)
+        category = 'high_volatility_growth'
+        name = '고변동성 성장주'
+        signal_threshold = 35  # 현재 설정 유지
+        target_winrate = 65
+        description = '높은 수익 가능성, 적극적 전략 적용'
+        
+    elif volatility >= 20 and rsi_extreme_ratio >= 0.05:
+        # 중변동성 기술주 (삼성전자 타입)
+        category = 'medium_volatility_tech'
+        name = '중변동성 기술주'
+        signal_threshold = 30  # 약간 완화
+        target_winrate = 55
+        description = '안정적 성장, 균형 잡힌 전략'
+        
+    else:
+        # 저변동성 안정주 (마이크로소프트, 애플 타입)
+        category = 'low_volatility_stable'
+        name = '저변동성 안정주'
+        signal_threshold = 25  # 대폭 완화
+        target_winrate = 45
+        description = '안전한 투자, 보수적 전략'
+    
+    return {
+        'category': category,
+        'name': name,
+        'volatility': round(volatility, 1),
+        'signal_threshold': signal_threshold,
+        'target_winrate': target_winrate,
+        'description': description,
+        'price_range': round(price_range, 1),
+        'rsi_extreme_ratio': round(rsi_extreme_ratio * 100, 1),
+        'avg_volume': avg_volume
+    }
+
 # 실시간 데이터 표시 함수들
 def check_api_status():
     """API 상태 체크 (UI에서 숨김)"""
@@ -1039,15 +1113,17 @@ def backtest_trading_signals(data, symbol, lookback_days=120):
             continue
             
         current_price = current_data.iloc[-1]['Close']
-        signals = analyze_trading_signals(current_data, current_price)
+        signals = analyze_trading_signals(current_data, current_price, symbol)
         
         if not signals.get('signals_available'):
             continue
             
         signal_strength = signals.get('signal_strength', 0)
+        stock_type = signals.get('stock_type', {})
+        threshold = stock_type.get('signal_threshold', 35)
         
-        # 매수/매도 신호가 충분히 강할 때만 거래 (고승률 최적화)
-        if abs(signal_strength) >= 35:  # 임계값 35 이상 (고승률 전략)
+        # 종목별 맞춤 신호 강도 임계값 적용
+        if abs(signal_strength) >= threshold:
             trade_type = 'BUY' if signal_strength > 0 else 'SELL'
             entry_price = current_price
             target_price = signals.get('target_price_1', current_price)
@@ -1195,13 +1271,16 @@ def analyze_backtest_results(trades, symbol):
         'trades': trades[:10]  # 최근 10개 거래만 저장
     }
 
-def analyze_trading_signals(data, current_price):
-    """매매 신호 분석"""
+def analyze_trading_signals(data, current_price, symbol=""):
+    """적응형 매매 신호 분석 - 종목 특성별 맞춤 전략"""
     if data.empty or len(data) < 60:
         return {
             'signals_available': False,
             'message': '데이터 부족으로 매매 신호 분석 불가'
         }
+    
+    # 종목 특성 분류
+    stock_type = classify_stock_type(data, symbol)
     
     latest = data.iloc[-1]
     prev = data.iloc[-2] if len(data) > 1 else latest
@@ -1210,22 +1289,69 @@ def analyze_trading_signals(data, current_price):
     entry_signals = []
     exit_signals = []
     
+    # 종목별 맞춤 파라미터 설정
+    category = stock_type['category']
+    if category == 'high_volatility_growth':
+        # 고변동성 성장주 (엔비디아, 메타 타입)
+        rsi_buy_threshold = 15
+        rsi_sell_threshold = 85
+        bb_buy_threshold = 2
+        bb_sell_threshold = 98
+        volume_multiplier = 1.5
+        ma_distance_threshold = 12
+        price_change_threshold = 8
+        volatility_threshold = 5
+        required_filters = 3
+    elif category == 'medium_volatility_tech':
+        # 중변동성 기술주 (삼성전자 타입)
+        rsi_buy_threshold = 20
+        rsi_sell_threshold = 80
+        bb_buy_threshold = 5
+        bb_sell_threshold = 95
+        volume_multiplier = 1.3
+        ma_distance_threshold = 15
+        price_change_threshold = 10
+        volatility_threshold = 6
+        required_filters = 2
+    elif category == 'low_volatility_stable':
+        # 저변동성 안정주 (마이크로소프트, 애플 타입)
+        rsi_buy_threshold = 25
+        rsi_sell_threshold = 75
+        bb_buy_threshold = 10
+        bb_sell_threshold = 90
+        volume_multiplier = 1.2
+        ma_distance_threshold = 20
+        price_change_threshold = 12
+        volatility_threshold = 8
+        required_filters = 2
+    else:
+        # 극변동성 투기주 (테슬라 타입) - 매우 보수적
+        rsi_buy_threshold = 10
+        rsi_sell_threshold = 90
+        bb_buy_threshold = 1
+        bb_sell_threshold = 99
+        volume_multiplier = 2.0
+        ma_distance_threshold = 10
+        price_change_threshold = 5
+        volatility_threshold = 3
+        required_filters = 4
+    
     # 1. RSI 신호 분석 (더 엄격한 기준)
     rsi = latest['RSI']
     rsi_prev = prev['RSI'] if not pd.isna(prev['RSI']) else rsi
     
-    # 고승률 RSI 기준: 매우 극단적인 수치에서만 신호 생성
-    if rsi < 20 and rsi_prev >= 20:  # 매우 엄격한 기준
-        entry_signals.append("RSI 극도 과매도권 진입 - 반등 신호")
+    # 적응형 RSI 기준: 종목별 맞춤 임계값
+    if rsi < rsi_buy_threshold and rsi_prev >= rsi_buy_threshold:
+        entry_signals.append(f"RSI {stock_type['name']} 맞춤 과매도권 진입 - 반등 신호")
         signal_strength += 30
-    elif rsi > 80 and rsi_prev <= 80:  # 매우 엄격한 기준
-        exit_signals.append("RSI 극도 과매수권 진입 - 매도 신호")
+    elif rsi > rsi_sell_threshold and rsi_prev <= rsi_sell_threshold:
+        exit_signals.append(f"RSI {stock_type['name']} 맞춤 과매수권 진입 - 매도 신호")
         signal_strength -= 25
-    elif rsi < 15:  # 매우 극단적인 경우만
-        entry_signals.append("RSI 극도 과매도 - 매우 강한 매수 신호")
+    elif rsi < rsi_buy_threshold * 0.75:  # 매우 극단적인 경우
+        entry_signals.append(f"RSI 극도 과매도 - 매우 강한 매수 신호 ({stock_type['name']})")
         signal_strength += 40
-    elif rsi > 85:  # 매우 극단적인 경우만
-        exit_signals.append("RSI 극도 과매수 - 매우 강한 매도 신호")
+    elif rsi > rsi_sell_threshold * 1.06:  # 매우 극단적인 경우 (85*1.06=90)
+        exit_signals.append(f"RSI 극도 과매수 - 매우 강한 매도 신호 ({stock_type['name']})")
         signal_strength -= 35
     
     # 2. 이동평균선 신호 분석
@@ -1261,18 +1387,18 @@ def analyze_trading_signals(data, current_price):
     prev_price = prev['Close']
     prev_bb_position = ((prev_price - prev['BB_Lower']) / (prev['BB_Upper'] - prev['BB_Lower'])) * 100 if not pd.isna(prev['BB_Lower']) else bb_position
     
-    # 고승률 볼린저밴드 기준: 매우 극단적인 위치에서만 신호
-    if bb_position < 5 and prev_bb_position >= 5:  # 5% 이하에서만
-        entry_signals.append("볼린저밴드 극하단 터치 - 강한 반등 신호")
+    # 적응형 볼린저밴드 기준: 종목별 맞춤 임계값
+    if bb_position < bb_buy_threshold and prev_bb_position >= bb_buy_threshold:
+        entry_signals.append(f"볼린저밴드 {stock_type['name']} 맞춤 하단 터치 - 반등 신호")
         signal_strength += 30
-    elif bb_position > 95 and prev_bb_position <= 95:  # 95% 이상에서만
-        exit_signals.append("볼린저밴드 극상단 터치 - 강한 조정 신호")
+    elif bb_position > bb_sell_threshold and prev_bb_position <= bb_sell_threshold:
+        exit_signals.append(f"볼린저밴드 {stock_type['name']} 맞춤 상단 터치 - 조정 신호")
         signal_strength -= 25
-    elif bb_position < 2:  # 매우 극단적인 경우
-        entry_signals.append("볼린저밴드 최하단 - 매우 강한 반등 신호")
+    elif bb_position < bb_buy_threshold * 0.5:  # 매우 극단적인 경우
+        entry_signals.append(f"볼린저밴드 최하단 - 매우 강한 반등 신호 ({stock_type['name']})")
         signal_strength += 35
-    elif bb_position > 98:  # 매우 극단적인 경우
-        exit_signals.append("볼린저밴드 최상단 - 매우 강한 조정 신호")
+    elif bb_position > bb_sell_threshold + (100-bb_sell_threshold)*0.5:  # 매우 극단적인 경우
+        exit_signals.append(f"볼린저밴드 최상단 - 매우 강한 조정 신호 ({stock_type['name']})")
         signal_strength -= 30
     
     # 볼린저밴드 스퀴즈 감지 (변동성 축소)
@@ -1323,35 +1449,35 @@ def analyze_trading_signals(data, current_price):
     # 6. 추가 보수적 필터 조건
     additional_filters_passed = 0
     
-    # 필터 1: 거래량 확인 (평균 거래량의 1.5배 이상) - 더 엄격
+    # 적응형 필터 1: 거래량 확인 (종목별 맞춤 배수)
     avg_volume = data['Volume'].rolling(window=20).mean().iloc[-1]
-    if latest['Volume'] > avg_volume * 1.5:
+    if latest['Volume'] > avg_volume * volume_multiplier:
         additional_filters_passed += 1
-        signals.append("거래량 충분한 증가 확인")
+        signals.append(f"거래량 {volume_multiplier}배 증가 확인 ({stock_type['name']})")
     
-    # 필터 2: 가격이 20일 평균선 근처에 있는지 확인 (너무 극단적이지 않은지)
+    # 적응형 필터 2: 가격이 20일 평균선 근처에 있는지 확인
     ma20_distance = abs((current_price - ma20) / ma20) * 100
-    if ma20_distance < 12:  # 20일선에서 12% 이내 (더 엄격)
+    if ma20_distance < ma_distance_threshold:
         additional_filters_passed += 1
-        signals.append("적정 가격 범위 내")
+        signals.append(f"적정 가격 범위 내 ({ma_distance_threshold}% 이내)")
     
-    # 필터 3: 최근 5일간 과도한 움직임이 없었는지 확인 (더 장기간)
+    # 적응형 필터 3: 최근 5일간 과도한 움직임 확인
     if len(data) >= 6:
         recent_5day_change = abs((current_price - data['Close'].iloc[-6]) / data['Close'].iloc[-6]) * 100
-        if recent_5day_change < 8:  # 5일간 8% 이내 움직임 (더 엄격)
+        if recent_5day_change < price_change_threshold:
             additional_filters_passed += 1
-            signals.append("안정적 가격 움직임")
+            signals.append(f"안정적 가격 움직임 ({price_change_threshold}% 이내)")
     
-    # 필터 4: ATR 기반 변동성 체크 (추가 필터)
+    # 적응형 필터 4: ATR 기반 변동성 체크
     atr_recent = data['Close'].rolling(window=14).std().iloc[-1] / current_price * 100
-    if atr_recent < 5:  # 최근 14일 변동성이 5% 미만
+    if atr_recent < volatility_threshold:
         additional_filters_passed += 1
-        signals.append("변동성 안정화")
+        signals.append(f"변동성 안정화 ({volatility_threshold}% 미만)")
     
-    # 고승률 필터: 4개 조건 중 최소 3개는 만족해야 함
-    if additional_filters_passed < 3:
+    # 적응형 필터 적용: 종목별 요구 조건 수 다름
+    if additional_filters_passed < required_filters:
         signal_strength = signal_strength * 0.3  # 신호 강도 70% 감소
-        signals.append("⚠️ 고승률 조건 미달 - 신호 강도 대폭 감소")
+        signals.append(f"⚠️ {stock_type['name']} 조건 미달 ({additional_filters_passed}/{required_filters}) - 신호 강도 감소")
     
     # 6. 종합 신호 강도 계산 및 추천
     signal_strength = max(-100, min(100, signal_strength))  # -100 ~ 100 범위로 제한
@@ -1401,7 +1527,8 @@ def analyze_trading_signals(data, current_price):
         'target_price_1': target_price_1,
         'target_price_2': target_price_2,
         'stop_loss': stop_loss,
-        'volatility': volatility * 100
+        'volatility': volatility * 100,
+        'stock_type': stock_type  # 종목 분류 정보 추가
     }
 
 def create_candlestick_chart(data, symbol):
@@ -1942,9 +2069,48 @@ def main():
             
             st.markdown("---")
             
+            # 종목 분류 정보 표시
+            st.subheader("📊 종목 특성 분석")
+            stock_classification = classify_stock_type(data, symbol)
+            
+            col_class1, col_class2, col_class3, col_class4 = st.columns(4)
+            
+            with col_class1:
+                st.metric(
+                    "종목 분류",
+                    stock_classification['name'],
+                    help="AI가 분석한 종목의 특성 분류"
+                )
+            
+            with col_class2:
+                st.metric(
+                    "연환산 변동성",
+                    f"{stock_classification['volatility']}%",
+                    help="최근 60일 기준 연환산 변동성"
+                )
+            
+            with col_class3:
+                st.metric(
+                    "신호 임계값",
+                    f"{stock_classification['signal_threshold']}",
+                    help="이 종목에 최적화된 매매 신호 임계값"
+                )
+            
+            with col_class4:
+                st.metric(
+                    "목표 승률",
+                    f"{stock_classification['target_winrate']}%",
+                    help="이 전략의 목표 승률"
+                )
+            
+            # 종목 특성 설명
+            st.info(f"💡 **{stock_classification['name']}**: {stock_classification['description']}")
+            
+            st.markdown("---")
+            
             # 현재 매매 신호 표시
             st.subheader("🎯 현재 매매 신호")
-            trading_signals = analyze_trading_signals(data, current_price)
+            trading_signals = analyze_trading_signals(data, current_price, symbol)
             
             if trading_signals['signals_available']:
                 # 종합 신호 표시
