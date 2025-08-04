@@ -2225,33 +2225,66 @@ def main():
                         help="20일 변동성 기준 위험도 ({:.1f}%)".format(volatility)
                     )
                 
-                # 목표가 및 손절가 표시
-                if trading_signals['signal_strength'] != 0:
-                    col_price1, col_price2, col_price3 = st.columns(3)
+                # 목표가 및 손절가 표시 (강한 신호가 아니어도 참고용으로 제공)
+                st.markdown("### 💰 가격 목표 및 손절선")
+                
+                # 신호 강도별 안내 메시지
+                signal_strength = trading_signals['signal_strength']
+                if abs(signal_strength) >= 25:
+                    price_guide_msg = "🟢 **강한 신호 - 적극적 진입 검토**"
+                elif abs(signal_strength) >= 10:
+                    price_guide_msg = "🟡 **약한 신호 - 신중한 접근 권장**"
+                else:
+                    price_guide_msg = "⚪ **관망 권장 - 아래는 참고용 가격대**"
+                
+                st.markdown(price_guide_msg)
+                
+                col_price1, col_price2, col_price3 = st.columns(3)
+                
+                with col_price1:
+                    target1 = trading_signals['target_price_1']
+                    price_type = "목표가" if signal_strength >= 0 else "하락 목표"
+                    st.metric(
+                        f"1차 {price_type}",
+                        format_price(target1, selected_symbol),
+                        "{:+.1f}%".format((target1 / current_price - 1) * 100),
+                        help="현재 변동성 기준 단기 목표 가격"
+                    )
+                
+                with col_price2:
+                    target2 = trading_signals['target_price_2']
+                    st.metric(
+                        f"2차 {price_type}",
+                        format_price(target2, selected_symbol),
+                        "{:+.1f}%".format((target2 / current_price - 1) * 100),
+                        help="현재 변동성 기준 확장 목표 가격"
+                    )
+                
+                with col_price3:
+                    stop_loss = trading_signals['stop_loss']
+                    st.metric(
+                        "손절가",
+                        format_price(stop_loss, selected_symbol),
+                        "{:+.1f}%".format((stop_loss / current_price - 1) * 100),
+                        help="리스크 관리를 위한 손절 기준가"
+                    )
+                
+                # 신호 강도별 추가 안내
+                if abs(signal_strength) < 25:
+                    st.info("""
+                    **ℹ️ 현재 신호 강도가 임계값(25) 미달입니다.**
                     
-                    with col_price1:
-                        target1 = trading_signals['target_price_1']
-                        st.metric(
-                            "1차 목표가" if trading_signals['signal_strength'] > 0 else "1차 목표가(하락)",
-                            format_price(target1, selected_symbol),
-                            "{:+.1f}%".format((target1 / current_price - 1) * 100)
-                        )
+                    **현재 상황:**
+                    - 신호 강도: {:.1f} (임계값: 25)
+                    - 상태: {} 
+                    - 권장: 추가 조건 확인 후 진입 고려
                     
-                    with col_price2:
-                        target2 = trading_signals['target_price_2']
-                        st.metric(
-                            "2차 목표가" if trading_signals['signal_strength'] > 0 else "2차 목표가(하락)",
-                            format_price(target2, selected_symbol),
-                            "{:+.1f}%".format((target2 / current_price - 1) * 100)
-                        )
-                    
-                    with col_price3:
-                        stop_loss = trading_signals['stop_loss']
-                        st.metric(
-                            "손절가",
-                            format_price(stop_loss, selected_symbol),
-                            "{:+.1f}%".format((stop_loss / current_price - 1) * 100)
-                        )
+                    **확인 사항:**
+                    - 거래량 증가 여부
+                    - 20일 평균선과의 거리
+                    - 최근 가격 안정성
+                    - 변동성 수준
+                    """.format(signal_strength, trading_signals['overall_signal']))
             else:
                 st.info("🚦 매매 신호 분석: {}".format(trading_signals['message']))
         
