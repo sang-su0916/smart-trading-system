@@ -2071,7 +2071,7 @@ def main():
             
             # 종목 분류 정보 표시
             st.subheader("📊 종목 특성 분석")
-            stock_classification = classify_stock_type(data, symbol)
+            stock_classification = classify_stock_type(data, selected_symbol)
             
             col_class1, col_class2, col_class3, col_class4 = st.columns(4)
             
@@ -2110,7 +2110,7 @@ def main():
             
             # 현재 매매 신호 표시
             st.subheader("🎯 현재 매매 신호")
-            trading_signals = analyze_trading_signals(data, current_price, symbol)
+            trading_signals = analyze_trading_signals(data, current_price, selected_symbol)
             
             if trading_signals['signals_available']:
                 # 종합 신호 표시
